@@ -1,0 +1,121 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.loading-full {
+  display: flex; align-items: center; justify-content: center;
+  height: 100vh; font-size: 1rem; color: #888;
+}
+
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-size: 1.25rem; font-weight: 700; color: #1a1a2e;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; border: none;
+  font-size: .86rem; font-weight: 600; cursor: pointer;
+  transition: all .18s;
+}
+
+.btn-primary { background: #e28a85; color: #fff; }
+.btn-primary:hover { background: #c9756f; }
+
+.btn-secondary { background: #f0f2f5; color: #444; }
+.btn-secondary:hover { background: #e0e2e5; }
+
+.btn-danger { background: #e0e2e5; color: #444; }
+.btn-danger:hover { background: #ffe0e0; }
+
+.btn-success { background: #e8f5e9; color: #2e7d32; }
+.btn-success:hover { background: #c8e6c9; }
+
+.card {
+  background: #fff; border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  padding: 20px;
+}
+
+.table-wrap { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+
+thead th {
+  padding: 10px 12px; text-align: left;
+  background: #f8f9fa; color: #666;
+  font-size: .76rem; text-transform: uppercase;
+  letter-spacing: .06em; border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 10px 12px; border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+tbody tr:hover { background: #fafafa; }
+
+.badge {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 20px; font-size: .74rem; font-weight: 600;
+}
+
+.badge-green  { background: #e8f5e9; color: #2e7d32; }
+.badge-red    { background: #fff0f0; color: #e03a3a; }
+.badge-yellow { background: #fff8e1; color: #f57f17; }
+.badge-blue   { background: #e3f2fd; color: #1565c0; }
+.badge-gray   { background: #f0f0f0; color: #666; }
+
+input, select, textarea {
+  padding: 9px 12px; border: 1.5px solid #e0e0e0;
+  border-radius: 8px; font-size: .88rem; outline: none;
+  font-family: inherit; width: 100%;
+  transition: border-color .2s;
+}
+
+input:focus, select:focus, textarea:focus { border-color: #e28a85; }
+
+/* ══════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .layout-main {
+    margin-left: 0;
+    padding: 12px;
+    padding-bottom: 70px; /* espacio para nav bottom */
+  }
+
+  .page-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .page-title { font-size: 1.05rem; }
+
+  table { font-size: .8rem; }
+  thead th, tbody td { padding: 8px 8px; }
+
+  .modal-box { padding: 20px 16px; }
+  .modal-wide { max-width: 100% !important; }
+}
+
+.productos-msg {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: .88rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.productos-msg.msg-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+.productos-msg.msg-error   { background: #fff0f0; color: #e03a3a; border: 1px solid #ffd0d0; }
