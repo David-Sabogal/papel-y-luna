@@ -15,7 +15,7 @@ module.exports = (sequelize, DataTypes) => {
 
   VentaItem.associate = (models) => {
     VentaItem.belongsTo(models.Venta,    { foreignKey: 'ventaId' });
-    VentaItem.belongsTo(models.Producto, { foreignKey: 'productoId' });
+    VentaItem.belongsTo(models.Producto, { foreignKey: 'productoId' , onDelete: 'SET NULL'});
   };
 
   return VentaItem;

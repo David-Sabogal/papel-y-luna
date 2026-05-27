@@ -35,6 +35,7 @@ module.exports = (sequelize, DataTypes) => {
       through: models.VentaItem,
       foreignKey: 'ventaId',
       otherKey: 'productoId',
+      onDelete: 'SET NULL'
     });
   };
 
