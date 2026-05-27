@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
     precio:      { type: DataTypes.FLOAT, allowNull: false },
     costo:       { type: DataTypes.FLOAT, defaultValue: 0 },
     categoriaId: { type: DataTypes.INTEGER },
-    imagen:      { type: DataTypes.STRING(500) },
+    imagen:      { type: DataTypes.TEXT },          // TEXT para base64 o URL larga
     badge:       { type: DataTypes.STRING(50) },
     codigoInterno:  { type: DataTypes.STRING(50) },
     codigoBarras:   { type: DataTypes.STRING(50) },
@@ -16,7 +16,7 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'unidad',
     },
     stock:           { type: DataTypes.FLOAT, defaultValue: 0 },
-    trackInventory:  { type: DataTypes.BOOLEAN, defaultValue: false },
+    trackInventory:  { type: DataTypes.BOOLEAN, defaultValue: true },
     colors: {
       type: DataTypes.TEXT,
       get() {

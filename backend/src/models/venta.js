@@ -13,17 +13,16 @@ module.exports = (sequelize, DataTypes) => {
     iva:            { type: DataTypes.FLOAT, defaultValue: 0 },
     total:          { type: DataTypes.FLOAT, defaultValue: 0 },
     metodoPago: {
-      type: DataTypes.ENUM('Efectivo', 'Nequi', 'Debe'),
+      type: DataTypes.ENUM('Efectivo', 'Nequi', 'Débito', 'Debe'),
     },
-    valorRecibido:   { type: DataTypes.FLOAT, defaultValue: 0 },
-    cambio:          { type: DataTypes.FLOAT, defaultValue: 0 },
-    saldoDebe:       { type: DataTypes.FLOAT, defaultValue: 0 },
-    // Trazabilidad de correcciones
-    fueCOrregida:    { type: DataTypes.BOOLEAN, defaultValue: false },
-    corregidaPor:    { type: DataTypes.INTEGER }, // usuarioId
-    corregidaEn:     { type: DataTypes.DATE },
-    snapshotAnterior: { type: DataTypes.TEXT }, // JSON del estado anterior
-    usuarioId:       { type: DataTypes.INTEGER },
+    valorRecibido:    { type: DataTypes.FLOAT, defaultValue: 0 },
+    cambio:           { type: DataTypes.FLOAT, defaultValue: 0 },
+    saldoDebe:        { type: DataTypes.FLOAT, defaultValue: 0 },
+    fueCOrregida:     { type: DataTypes.BOOLEAN, defaultValue: false },
+    corregidaPor:     { type: DataTypes.INTEGER },
+    corregidaEn:      { type: DataTypes.DATE },
+    snapshotAnterior: { type: DataTypes.TEXT },
+    usuarioId:        { type: DataTypes.INTEGER },
   }, { tableName: 'Ventas' });
 
   Venta.associate = (models) => {

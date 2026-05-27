@@ -117,22 +117,23 @@ exports.create = async (req, res, next) => {
     }, { transaction: t });
 
     for (const item of itemsConPrecio) {
-      await VentaItem.create({
-        ventaId:       venta.id,
-        productoId:    item.productoId,
-        quantity:      item.quantity,
-        price:         item.precioUnitario,
-        subtotal:      item.itemSubtotal,
-        selectedColor: item.selectedColor || null,
-      }, { transaction: t });
+  await VentaItem.create({
+    ventaId:        venta.id,
+    productoId:     item.productoId,
+    nombreProducto: item.producto?.nombre || null,  // ← agrega esto
+    quantity:       item.quantity,
+    price:          item.precioUnitario,
+    subtotal:       item.itemSubtotal,
+    selectedColor:  item.selectedColor || null,
+  }, { transaction: t });
 
-      if (estado === 'cerrada' && item.producto.trackInventory) {
-        await item.producto.update(
-          { stock: item.producto.stock - item.quantity },
-          { transaction: t }
-        );
-      }
-    }
+  if (estado === 'cerrada' && item.producto.trackInventory) {
+    await item.producto.update(
+      { stock: item.producto.stock - item.quantity },
+      { transaction: t }
+    );
+  }
+}
 
     if (saldoDebe > 0 && clienteId) {
       const cliente = await Cliente.findByPk(clienteId, { transaction: t });
@@ -278,6 +279,7 @@ exports.corregir = async (req, res, next) => {
       await VentaItem.create({
         ventaId:       venta.id,
         productoId:    item.productoId,
+        nombreProducto: producto?.nombre || null,
         quantity:      item.quantity,
         price:         precioUnitario,
         subtotal:      itemSubtotal,

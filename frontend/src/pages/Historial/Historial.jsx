@@ -231,7 +231,11 @@ export default function Historial() {
             <tbody>
               {detalle.items?.map(item => (
                 <tr key={item.id || item.productoId}>
-                  <td>{item.Producto?.nombre || '?'}</td>
+                  <td>
+  {item.Producto?.nombre || item.nombreProducto
+    ? (item.Producto?.nombre || item.nombreProducto) + (item.productoId === null ? ' (eliminado)' : '')
+    : '(producto eliminado)'}
+</td>
                   <td>{formatCOP(item.price)}</td>
                   <td>{item.quantity}</td>
                   <td>{formatCOP(item.subtotal)}</td>
