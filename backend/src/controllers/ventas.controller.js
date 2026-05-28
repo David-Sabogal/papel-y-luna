@@ -3,7 +3,7 @@ const { Venta, VentaItem, Producto, Cliente, Descuento, Usuario } = require('../
 const { Op } = require('sequelize');
 
 const includeCompleto = [
-  { model: VentaItem, as: 'items', include: [{ model: Producto, attributes: ['id', 'nombre', 'precio', 'imagen'] }] },
+  { model: VentaItem, as: 'items', include: [{ model: Producto, attributes: ['id', 'nombre', 'precio', 'imagen'], required: false }] },
   { model: Cliente,   attributes: ['id', 'nombre', 'telefono'], required: false },
   { model: Descuento, attributes: ['id', 'nombre', 'tipo', 'valor'], required: false },
   { model: Usuario,   attributes: ['id', 'username'], required: false },
@@ -120,7 +120,7 @@ exports.create = async (req, res, next) => {
   await VentaItem.create({
     ventaId:        venta.id,
     productoId:     item.productoId,
-    nombreProducto: item.producto?.nombre || null,  // ← agrega esto
+    nombreProducto: item.producto?.nombre || item.nombre || item.nombreProducto || null,
     quantity:       item.quantity,
     price:          item.precioUnitario,
     subtotal:       item.itemSubtotal,
@@ -437,11 +437,10 @@ exports.reporteVentas = async (req, res, next) => {
     const conteo = {};
     for (const v of ventas) {
       for (const item of v.items) {
-        const key = item.productoId;
-        if (!key) continue;
-        if (!conteo[key]) {
-          conteo[key] = { productoId: key, nombre: item.Producto?.nombre || '?', cantidad: 0, total: 0 };
-        }
+       const key = item.productoId || `del-${item.nombreProducto}`;
+if (!conteo[key]) {
+  conteo[key] = { productoId: item.productoId, nombre: item.Producto?.nombre || item.nombreProducto || 'Producto Eliminado', cantidad: 0, total: 0 };
+}
         conteo[key].cantidad += item.quantity;
         conteo[key].total    += item.subtotal;
       }
