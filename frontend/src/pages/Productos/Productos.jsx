@@ -15,11 +15,12 @@ const empty = {
 
 export default function Productos() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'admin';
 
   const [productos, setProductos]   = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [busqueda, setBusqueda]     = useState('');
+  const [filtroStock, setFiltroStock] = useState(''); // ← Estado del filtro de stock agregado
   const [form, setForm]             = useState(empty);
   const [editId, setEditId]         = useState(null);
   const [showForm, setShowForm]     = useState(false);
@@ -45,10 +46,17 @@ export default function Productos() {
     setTimeout(() => setMsg(null), 3500);
   };
 
-  const filtrados = productos.filter(p =>
-    p.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    p.codigoInterno?.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  // Filtrado combinado de búsqueda de texto + botones de stock
+  const filtrados = productos.filter(p => {
+    const matchBusqueda = p.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      p.codigoInterno?.toLowerCase().includes(busqueda.toLowerCase());
+    
+    const matchStock = filtroStock === '' ? true
+      : filtroStock === 'con' ? p.stock > 0
+      : p.stock <= 0;
+
+    return matchBusqueda && matchStock;
+  });
 
   const abrirNuevo = () => {
     setForm(empty);
@@ -139,12 +147,32 @@ export default function Productos() {
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      {/* Caja de búsqueda y controles de filtro con flexbox */}
+      <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           placeholder="Buscar por nombre o código..."
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
+          style={{ flex: 1, minWidth: 200 }}
         />
+        <button
+          className={`btn ${filtroStock === '' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ padding: '8px 14px', fontSize: '.88rem' }}
+          onClick={() => setFiltroStock('')}>
+          Todos
+        </button>
+        <button
+          className={`btn ${filtroStock === 'con' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ padding: '8px 14px', fontSize: '.88rem' }}
+          onClick={() => setFiltroStock('con')}>
+          ✅ Con stock
+        </button>
+        <button
+          className={`btn ${filtroStock === 'sin' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ padding: '8px 14px', fontSize: '.88rem' }}
+          onClick={() => setFiltroStock('sin')}>
+          🔴 Agotados
+        </button>
       </div>
 
       <div className="card table-wrap">
@@ -164,7 +192,7 @@ export default function Productos() {
             {filtrados.length === 0 ? (
               <tr>
                 <td colSpan={isAdmin ? 7 : 5} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>
-                  No hay productos
+                  No hay productos que coincidan con los filtros
                 </td>
               </tr>
             ) : filtrados.map(p => (

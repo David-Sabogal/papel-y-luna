@@ -45,36 +45,45 @@ exports.create = async (req, res, next) => {
 
     let total = 0;
     for (const item of items) {
-      total += item.costoUnitario * item.cantidad;
+      total += (parseFloat(item.costoUnitario) || 0) * (parseInt(item.cantidad) || 0);
     }
 
     const compra = await Compra.create({
-      proveedorId: proveedorId || null,
+      proveedorId:   proveedorId || null,
       metodoPago,
       total,
       observaciones: observaciones || null,
-      usuarioId: req.user?.sub || null,
+      usuarioId:     req.user?.sub || null,
     }, { transaction: t });
 
     for (const item of items) {
-      const subtotal = item.costoUnitario * item.cantidad;
+      const subtotal = (parseFloat(item.costoUnitario) || 0) * (parseInt(item.cantidad) || 0);
+
       await CompraItem.create({
-        compraId: compra.id,
-        productoId: item.productoId || null,
+        compraId:       compra.id,
+        productoId:     item.productoId || null,
         nombreProducto: item.nombreProducto || null,
-        cantidad: item.cantidad,
-        costoUnitario: item.costoUnitario,
+        cantidad:       parseInt(item.cantidad),
+        costoUnitario:  parseFloat(item.costoUnitario),
         subtotal,
       }, { transaction: t });
 
-      // Actualizar stock si el producto existe y tiene trackInventory
+      // Actualizar stock Y costo del producto si existe
       if (item.productoId) {
         const producto = await Producto.findByPk(item.productoId, { transaction: t });
-        if (producto && producto.trackInventory) {
-          await producto.update(
-            { stock: producto.stock + item.cantidad },
-            { transaction: t }
-          );
+        if (producto) {
+          const updates = {};
+          // Siempre actualizar stock
+          if (producto.trackInventory) {
+            updates.stock = producto.stock + parseInt(item.cantidad);
+          }
+          // Actualizar costo si viene un precio unitario
+          if (item.costoUnitario && parseFloat(item.costoUnitario) > 0) {
+            updates.costo = parseFloat(item.costoUnitario);
+          }
+          if (Object.keys(updates).length > 0) {
+            await producto.update(updates, { transaction: t });
+          }
         }
       }
     }

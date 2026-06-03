@@ -65,3 +65,41 @@
   color: #1a1a2e;
   margin-bottom: 4px;
 }
+.detalle-inline {
+  background: #fdf6f6;
+  border-top: 1px solid #f0e0e0;
+  border-bottom: 2px solid #e28a85;
+  padding: 12px 16px;
+}
+
+.detalle-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+  font-size: .84rem;
+}
+
+.detalle-tabla th {
+  padding: 7px 10px;
+  text-align: left;
+  background: #f9f0f0;
+  color: #888;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.detalle-tabla td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f5e8e8;
+}
+
+.detalle-totales {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 8px 0 0;
+  font-size: .86rem;
+  color: #555;
+  flex-wrap: wrap;
+}

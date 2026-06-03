@@ -122,13 +122,15 @@ export default function Compras() {
   };
 
   // RF-94: crear producto rápido desde compra
-  const crearProductoRapido = async (e) => {
+const crearProductoRapido = async (e) => {
   e.preventDefault();
   try {
+    const costoDelItem = parseFloat(form.items[itemIndexRapido]?.costoUnitario) || 0;
     const { data } = await client.post('/api/productos', {
       nombre: formProductoRapido.nombre,
       precio: parseFloat(formProductoRapido.precio) || 0,
-      stock:  0, // empieza en 0, la compra lo actualiza
+      costo:  costoDelItem, // toma el costo unitario de la línea de compra
+      stock:  0,
     });
     setProductos(prev => [...prev, data]);
     if (itemIndexRapido !== null) {
@@ -143,6 +145,7 @@ export default function Compras() {
     mostrarMsg(err.response?.data?.error || 'Error al crear producto', 'error');
   }
 };
+
   // Filtrar compras
   const comprasFiltradas = compras.filter(c => {
     const matchProveedor = !filtroProveedor || String(c.proveedorId) === filtroProveedor;
@@ -192,27 +195,66 @@ export default function Compras() {
             </tr>
           </thead>
           <tbody>
-            {comprasFiltradas.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>
-                No hay compras registradas
-              </td></tr>
-            ) : comprasFiltradas.map(c => (
-              <tr key={c.id}>
-                <td><strong>#{c.id}</strong></td>
-                <td>{new Date(c.createdAt).toLocaleDateString('es-CO')}</td>
-                <td>{c.Proveedor?.nombre || <span style={{ color: '#bbb' }}>Sin proveedor</span>}</td>
-                <td><strong>{formatCOP(c.total)}</strong></td>
-                <td>{c.metodoPago}</td>
-                <td>
-                  <button className="btn btn-secondary"
-                    style={{ padding: '4px 10px', fontSize: '.78rem' }}
-                    onClick={() => setDetalle(detalle?.id === c.id ? null : c)}>
-                    {detalle?.id === c.id ? 'Ocultar' : 'Ver'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
+  {comprasFiltradas.length === 0 ? (
+    <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>
+      No hay compras registradas
+    </td></tr>
+  ) : comprasFiltradas.map(c => {
+    const mostrandoDetalle = detalle?.id === c.id;
+    return (
+      <>
+        <tr key={c.id} style={{ background: mostrandoDetalle ? '#f6fdf9' : undefined }}>
+          <td><strong>#{c.id}</strong></td>
+          <td>{new Date(c.createdAt).toLocaleDateString('es-CO')}</td>
+          <td>{c.Proveedor?.nombre || <span style={{ color: '#bbb' }}>Sin proveedor</span>}</td>
+          <td><strong>{formatCOP(c.total)}</strong></td>
+          <td>{c.metodoPago}</td>
+          <td>
+            <button className="btn btn-secondary"
+              style={{ padding: '4px 10px', fontSize: '.78rem' }}
+              onClick={() => setDetalle(mostrandoDetalle ? null : c)}>
+              {mostrandoDetalle ? '▲ Ocultar' : '▼ Ver'}
+            </button>
+          </td>
+        </tr>
+
+        {mostrandoDetalle && (
+          <tr key={`detalle-${c.id}`}>
+            <td colSpan={6} style={{ padding: 0 }}>
+              <div className="detalle-inline">
+                <table className="detalle-tabla">
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      <th>Cantidad</th>
+                      <th>Costo unit.</th>
+                      <th>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {c.CompraItems?.map(i => (
+                      <tr key={i.id}>
+                        <td>{i.Producto?.nombre || i.nombreProducto || '—'}</td>
+                        <td>{i.cantidad}</td>
+                        <td>{formatCOP(i.costoUnitario)}</td>
+                        <td>{formatCOP(i.subtotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {c.observaciones && (
+                  <p style={{ fontSize: '.84rem', color: '#888', marginTop: 6 }}>
+                    Obs: {c.observaciones}
+                  </p>
+                )}
+              </div>
+            </td>
+          </tr>
+        )}
+      </>
+    );
+  })}
+</tbody>
         </table>
       </div>
 

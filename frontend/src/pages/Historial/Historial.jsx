@@ -3,7 +3,7 @@ import client from '../../api/client';
 import Factura from '../../components/Factura';
 import CorreccionVenta from '../../components/CorreccionVenta';
 import ReembolsoVenta from '../../components/ReembolsoVenta';
-import { useAuth } from '../../context/AuthContext'; // ← Importación del contexto agregada
+import { useAuth } from '../../context/AuthContext';
 import './Historial.css';
 
 const formatCOP = (v) =>
@@ -17,9 +17,8 @@ const estadoBadge = {
 };
 
 export default function Historial() {
-  // Extracción del rol del usuario desde tu AuthContext
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'admin';
+  const isAdmin = user?.role === 'ADMIN';
 
   const [ventas, setVentas]         = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -29,7 +28,7 @@ export default function Historial() {
   const [desde, setDesde]           = useState('');
   const [hasta, setHasta]           = useState('');
   const [clientes, setClientes]     = useState([]);
-  const [detalle, setDetalle]       = useState(null);
+  const [detalleId, setDetalleId]   = useState(null);
   const [showFactura, setShowFactura]     = useState(null);
   const [showCorreccion, setShowCorreccion] = useState(null);
   const [showReembolso, setShowReembolso]   = useState(null);
@@ -73,13 +72,14 @@ export default function Historial() {
     } catch (err) { alert(err.response?.data?.error || 'Error al registrar abono'); }
   };
 
+  const toggleDetalle = (id) => setDetalleId(prev => prev === id ? null : id);
+
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">📋 Historial de Ventas</h1>
       </div>
 
-      {/* Filtros */}
       <div className="card historial-filtros">
         <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
           <option value="">Todos los estados</option>
@@ -124,104 +124,127 @@ export default function Historial() {
                 <th>Saldo</th>
                 <th>Estado</th>
                 {isAdmin && <th>Corregida</th>}
-                <th>Acciones</th> {/* Se deja visible siempre el encabezado para cuadrar las columnas */}
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {ventas.map(v => {
                 const noAnulada  = v.estado !== 'anulada';
                 const esCerrada  = v.estado === 'cerrada';
-                const esGuardada = v.estado === 'guardada' || v.estado === 'abierta';
                 const tieneSaldo = v.saldoDebe > 0 && esCerrada;
+                const mostrandoDetalle = detalleId === v.id;
 
                 return (
-                  <tr key={v.id}>
-                    <td><strong>#{v.id}</strong></td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      {new Date(v.createdAt).toLocaleString('es-CO')}
-                    </td>
-                    <td>{v.Cliente?.nombre || <span style={{ color: '#bbb' }}>—</span>}</td>
-                    <td><strong>{formatCOP(v.total)}</strong></td>
-                    <td>{v.metodoPago || '—'}</td>
-                    <td>
-                      {v.saldoDebe > 0
-                        ? <span className="badge badge-red">{formatCOP(v.saldoDebe)}</span>
-                        : <span className="badge badge-green">Al día</span>}
-                    </td>
-                    <td>
-                      <span className={estadoBadge[v.estado] || 'badge badge-gray'}>
-                        {v.estado}
-                      </span>
-                    </td>
-                    
-                    {/* Celda condicional para Admin */}
-                    {isAdmin && (
-                      <td>
-                        {v.fueCOrregida
-                          ? <span className="badge badge-yellow"
-                              title={`Por: ${v.Usuario?.username || '?'} — ${v.corregidaEn ? new Date(v.corregidaEn).toLocaleString('es-CO') : ''}`}>
-                              ✏️ Sí
-                            </span>
-                          : <span style={{ color: '#bbb' }}>—</span>}
+                  <>
+                    <tr key={v.id} style={{ background: mostrandoDetalle ? '#fdf6f6' : undefined }}>
+                      <td><strong>#{v.id}</strong></td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {new Date(v.createdAt).toLocaleString('es-CO')}
                       </td>
-                    )}
-
-                    <td>
-                      <div className="historial-acciones">
-                        {/* Ver detalle — Disponible para todos */}
-                        <button className="btn btn-secondary"
-                          style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                          onClick={() => setDetalle(detalle?.id === v.id ? null : v)}>
-                          {detalle?.id === v.id ? 'Ocultar' : 'Ver'}
-                        </button>
-
-                        {/* Factura — Disponible para todos siempre que no esté anulada */}
-                        {noAnulada && (
+                      <td>{v.Cliente?.nombre || <span style={{ color: '#bbb' }}>—</span>}</td>
+                      <td><strong>{formatCOP(v.total)}</strong></td>
+                      <td>{v.metodoPago || '—'}</td>
+                      <td>
+                        {v.saldoDebe > 0
+                          ? <span className="badge badge-red">{formatCOP(v.saldoDebe)}</span>
+                          : <span className="badge badge-green">Al día</span>}
+                      </td>
+                      <td>
+                        <span className={estadoBadge[v.estado] || 'badge badge-gray'}>
+                          {v.estado}
+                        </span>
+                      </td>
+                      {isAdmin && (
+                        <td>
+                          {v.fueCOrregida
+                            ? <span className="badge badge-yellow"
+                                title={`Por: ${v.Usuario?.username || '?'}`}>✏️ Sí</span>
+                            : <span style={{ color: '#bbb' }}>—</span>}
+                        </td>
+                      )}
+                      <td>
+                        <div className="historial-acciones">
                           <button className="btn btn-secondary"
                             style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                            onClick={() => setShowFactura(v)}
-                            title="Ver factura">🧾</button>
-                        )}
+                            onClick={() => toggleDetalle(v.id)}>
+                            {mostrandoDetalle ? '▲ Ocultar' : '▼ Ver'}
+                          </button>
+                          {noAnulada && (
+                            <button className="btn btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '.76rem' }}
+                              onClick={() => setShowFactura(v)}>🧾</button>
+                          )}
+                          {isAdmin && noAnulada && (
+                            <button className="btn btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '.76rem' }}
+                              onClick={() => setShowCorreccion(v)}>✏️</button>
+                          )}
+                          {isAdmin && esCerrada && (
+                            <button className="btn btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '.76rem' }}
+                              onClick={() => setShowReembolso(v)}>↩️</button>
+                          )}
+                          {tieneSaldo && (
+                            <button className="btn btn-success"
+                              style={{ padding: '4px 8px', fontSize: '.76rem' }}
+                              onClick={() => { setShowAbono(v); setAbonoVal(''); }}>
+                              💰 Abono
+                            </button>
+                          )}
+                          {isAdmin && noAnulada && (
+                            <button className="btn btn-danger"
+                              style={{ padding: '4px 8px', fontSize: '.76rem' }}
+                              onClick={() => setShowAnular(v)}>🗑</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
 
-                        {/* ACCIONES EXCLUSIVAS DE ADMINISTRADOR */}
-                        {isAdmin && (
-                          <>
-                            {/* Corregir — ventas no anuladas */}
-                            {noAnulada && (
-                              <button className="btn btn-secondary"
-                                style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                                onClick={() => setShowCorreccion(v)}
-                                title="Corregir venta">✏️</button>
-                            )}
-
-                            {/* Reembolso — solo ventas cerradas */}
-                            {esCerrada && (
-                              <button className="btn btn-secondary"
-                                style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                                onClick={() => setShowReembolso(v)}
-                                title="Reembolsar">↩️</button>
-                            )}
-
-                            {/* Abono — ventas cerradas con saldo pendiente */}
-                            {tieneSaldo && (
-                              <button className="btn btn-success"
-                                style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                                onClick={() => { setShowAbono(v); setAbonoVal(''); }}
-                                title="Registrar abono">💰 Abono</button>
-                            )}
-
-                            {/* Anular — ventas no anuladas */}
-                            {noAnulada && (
-                              <button className="btn btn-danger"
-                                style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                                onClick={() => setShowAnular(v)}
-                                title="Anular venta">🗑</button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                    {/* Detalle inline justo debajo de esta fila */}
+                    {mostrandoDetalle && (
+                      <tr key={`detalle-${v.id}`}>
+                        <td colSpan={isAdmin ? 9 : 8} style={{ padding: 0 }}>
+                          <div className="detalle-inline">
+                            <table className="detalle-tabla">
+                              <thead>
+                                <tr>
+                                  <th>Producto</th>
+                                  <th>Precio unit.</th>
+                                  <th>Cant.</th>
+                                  <th>Subtotal</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {v.items?.map((item, idx) => (
+                                  <tr key={idx}>
+                                    <td>
+                                      {item.Producto?.nombre || item.nombreProducto
+                                        ? (item.Producto?.nombre || item.nombreProducto) +
+                                          (item.productoId === null ? ' (eliminado)' : '')
+                                        : '(producto eliminado)'}
+                                    </td>
+                                    <td>{formatCOP(item.price)}</td>
+                                    <td>{item.quantity}</td>
+                                    <td>{formatCOP(item.subtotal)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <div className="detalle-totales">
+                              <span>Subtotal: {formatCOP(v.subtotal)}</span>
+                              {v.descuentoValor > 0 && (
+                                <span style={{ color: '#2e7d32' }}>Descuento: − {formatCOP(v.descuentoValor)}</span>
+                              )}
+                              <strong>Total: {formatCOP(v.total)}</strong>
+                              {v.saldoDebe > 0 && (
+                                <span className="badge badge-red">Debe: {formatCOP(v.saldoDebe)}</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 );
               })}
             </tbody>
@@ -229,68 +252,23 @@ export default function Historial() {
         )}
       </div>
 
-      {/* Detalle expandido */}
-      {detalle && (
-        <div className="card historial-detalle">
-          <h3>Detalle — Venta #{detalle.id}</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Precio unit.</th>
-                <th>Cant.</th>
-                <th>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detalle.items?.map(item => (
-                <tr key={item.id || item.productoId}>
-                  <td>
-                    {item.Producto?.nombre || item.nombreProducto
-                      ? (item.Producto?.nombre || item.nombreProducto) + (item.productoId === null ? ' (eliminado)' : '')
-                      : '(producto eliminado)'}
-                  </td>
-                  <td>{formatCOP(item.price)}</td>
-                  <td>{item.quantity}</td>
-                  <td>{formatCOP(item.subtotal)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="detalle-totales">
-            <span>Subtotal: {formatCOP(detalle.subtotal)}</span>
-            {detalle.descuentoValor > 0 && (
-              <span>Descuento: − {formatCOP(detalle.descuentoValor)}</span>
-            )}
-            <strong>Total: {formatCOP(detalle.total)}</strong>
-            {detalle.saldoDebe > 0 && (
-              <span className="badge badge-red">Debe: {formatCOP(detalle.saldoDebe)}</span>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Modal abono */}
       {showAbono && (
         <div className="modal-overlay">
           <div className="modal-box">
             <h3>💰 Registrar abono — Venta #{showAbono.id}</h3>
             <p style={{ color: '#888', fontSize: '.88rem', margin: '8px 0 14px' }}>
-              Saldo pendiente:{' '}
-              <strong style={{ color: '#e03a3a' }}>{formatCOP(showAbono.saldoDebe)}</strong>
+              Saldo pendiente: <strong style={{ color: '#e03a3a' }}>{formatCOP(showAbono.saldoDebe)}</strong>
             </p>
             <div className="field">
               <label>Valor del abono</label>
-              <input
-                type="number" min="1" max={showAbono.saldoDebe}
+              <input type="number" min="1" max={showAbono.saldoDebe}
                 placeholder="0" value={abonoVal}
-                onChange={e => setAbonoVal(e.target.value)}
-                autoFocus
-              />
+                onChange={e => setAbonoVal(e.target.value)} autoFocus />
             </div>
             {abonoVal && parseFloat(abonoVal) >= showAbono.saldoDebe && (
               <p style={{ color: '#2e7d32', fontSize: '.84rem', marginTop: 6 }}>
-                ✅ Saldo quedará en $0 — completamente pagado
+                ✅ Saldo quedará en $0
               </p>
             )}
             {abonoVal && parseFloat(abonoVal) < showAbono.saldoDebe && parseFloat(abonoVal) > 0 && (
@@ -299,9 +277,7 @@ export default function Historial() {
               </p>
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-              <button className="btn btn-secondary" onClick={() => setShowAbono(null)}>
-                Cancelar
-              </button>
+              <button className="btn btn-secondary" onClick={() => setShowAbono(null)}>Cancelar</button>
               <button className="btn btn-primary" onClick={() => registrarAbono(showAbono.id)}>
                 Confirmar abono
               </button>
@@ -318,17 +294,11 @@ export default function Historial() {
             <p style={{ color: '#888', fontSize: '.88rem', margin: '8px 0 14px' }}>
               Esta acción restaura el stock. No se puede deshacer.
             </p>
-            <textarea
-              placeholder="Motivo de anulación (opcional)"
-              value={motivo}
-              onChange={e => setMotivo(e.target.value)}
-              rows={3}
-              style={{ marginBottom: 14 }}
-            />
+            <textarea placeholder="Motivo de anulación (opcional)"
+              value={motivo} onChange={e => setMotivo(e.target.value)}
+              rows={3} style={{ marginBottom: 14 }} />
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setShowAnular(null)}>
-                Cancelar
-              </button>
+              <button className="btn btn-secondary" onClick={() => setShowAnular(null)}>Cancelar</button>
               <button className="btn btn-danger" onClick={() => anular(showAnular.id)}>
                 Confirmar anulación
               </button>
@@ -337,21 +307,14 @@ export default function Historial() {
         </div>
       )}
 
-      {/* Modales secundarios */}
-      {showFactura && (
-        <Factura venta={showFactura} onClose={() => setShowFactura(null)} />
-      )}
+      {showFactura && <Factura venta={showFactura} onClose={() => setShowFactura(null)} />}
       {showCorreccion && (
-        <CorreccionVenta
-          venta={showCorreccion}
-          onClose={() => { setShowCorreccion(null); cargar(); }}
-        />
+        <CorreccionVenta venta={showCorreccion}
+          onClose={() => { setShowCorreccion(null); cargar(); }} />
       )}
       {showReembolso && (
-        <ReembolsoVenta
-          venta={showReembolso}
-          onClose={() => { setShowReembolso(null); cargar(); }}
-        />
+        <ReembolsoVenta venta={showReembolso}
+          onClose={() => { setShowReembolso(null); cargar(); }} />
       )}
     </div>
   );

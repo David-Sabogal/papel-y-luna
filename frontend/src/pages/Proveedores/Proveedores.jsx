@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import client from '../../api/client';
+import { useAuth } from '../../context/AuthContext'; // ← Importación del contexto añadida
 
 const empty = { nombre: '', nit: '', telefono: '', email: '', direccion: '' };
 
 export default function Proveedores() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'admin'; // ← Control de rol para seguridad
+
   const [proveedores, setProveedores]   = useState([]);
+  const [busqueda, setBusqueda]         = useState(''); // ← Estado de búsqueda añadido
   const [form, setForm]                 = useState(empty);
   const [editId, setEditId]             = useState(null);
   const [showForm, setShowForm]         = useState(false);
@@ -15,14 +20,23 @@ export default function Proveedores() {
   useEffect(() => { cargar(); }, []);
 
   const cargar = async () => {
-    const { data } = await client.get('/api/proveedores');
-    setProveedores(data);
+    try {
+      const { data } = await client.get('/api/proveedores');
+      setProveedores(data);
+    } catch (err) { console.error(err); }
   };
 
   const mostrarMsg = (texto, tipo = 'success') => {
     setMsg({ texto, tipo });
     setTimeout(() => setMsg(null), 3500);
   };
+
+  // Lógica de filtrado combinando nombre, NIT y teléfono
+  const filtrados = proveedores.filter(p =>
+    p.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    p.nit?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    p.telefono?.includes(busqueda)
+  );
 
   const guardar = async (e) => {
     e.preventDefault(); setLoading(true);
@@ -62,7 +76,9 @@ export default function Proveedores() {
     <div>
       <div className="page-header">
         <h1 className="page-title">🤝 Proveedores</h1>
-        <button className="btn btn-primary" onClick={() => abrir(null)}>+ Nuevo</button>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => abrir(null)}>+ Nuevo</button>
+        )}
       </div>
 
       {msg && (
@@ -72,34 +88,57 @@ export default function Proveedores() {
         </div>
       )}
 
+      {/* Barra de búsqueda integrada */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <input
+          placeholder="Buscar por nombre, NIT o teléfono..."
+          value={busqueda}
+          onChange={e => setBusqueda(e.target.value)}
+        />
+      </div>
+
       <div className="card table-wrap">
         <table>
-          <thead><tr><th>Nombre</th><th>NIT</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>NIT</th>
+              <th>Teléfono</th>
+              <th>Email</th>
+              {isAdmin && <th>Acciones</th>}
+            </tr>
+          </thead>
           <tbody>
-            {proveedores.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>No hay proveedores</td></tr>
-            ) : proveedores.map(p => (
+            {filtrados.length === 0 ? (
+              <tr>
+                <td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>
+                  No hay proveedores que coincidan con la búsqueda
+                </td>
+              </tr>
+            ) : filtrados.map(p => (
               <tr key={p.id}>
                 <td><strong>{p.nombre}</strong></td>
                 <td>{p.nit || '—'}</td>
                 <td>{p.telefono || '—'}</td>
                 <td>{p.email || '—'}</td>
-                <td>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '.78rem' }}
-                      onClick={() => abrir(p)}>Editar</button>
-                    <button className="btn btn-danger" style={{ padding: '4px 10px', fontSize: '.78rem' }}
-                      onClick={() => setPendingDelete({ id: p.id, nombre: p.nombre })}>Eliminar</button>
-                  </div>
-                </td>
+                {isAdmin && (
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '.78rem' }}
+                        onClick={() => abrir(p)}>Editar</button>
+                      <button className="btn btn-danger" style={{ padding: '4px 10px', fontSize: '.78rem' }}
+                        onClick={() => setPendingDelete({ id: p.id, nombre: p.nombre })}>Eliminar</button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Modal confirmar eliminar */}
-      {pendingDelete && (
+      {/* Modal confirmar eliminar — protegido */}
+      {pendingDelete && isAdmin && (
         <div className="modal-overlay">
           <div className="modal-box">
             <h3>¿Eliminar proveedor?</h3>
@@ -114,8 +153,8 @@ export default function Proveedores() {
         </div>
       )}
 
-      {/* Modal form */}
-      {showForm && (
+      {/* Modal formulario — protegido */}
+      {showForm && isAdmin && (
         <div className="modal-overlay">
           <div className="modal-box">
             <h3>{editId ? 'Editar proveedor' : 'Nuevo proveedor'}</h3>
