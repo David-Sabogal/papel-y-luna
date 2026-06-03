@@ -3,6 +3,7 @@ import client from '../../api/client';
 import Factura from '../../components/Factura';
 import CorreccionVenta from '../../components/CorreccionVenta';
 import ReembolsoVenta from '../../components/ReembolsoVenta';
+import { useAuth } from '../../context/AuthContext'; // ← Importación del contexto agregada
 import './Historial.css';
 
 const formatCOP = (v) =>
@@ -16,6 +17,10 @@ const estadoBadge = {
 };
 
 export default function Historial() {
+  // Extracción del rol del usuario desde tu AuthContext
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'admin';
+
   const [ventas, setVentas]         = useState([]);
   const [loading, setLoading]       = useState(true);
   const [filtroEstado, setFiltroEstado] = useState('');
@@ -118,8 +123,8 @@ export default function Historial() {
                 <th>Pago</th>
                 <th>Saldo</th>
                 <th>Estado</th>
-                <th>Corregida</th>
-                <th>Acciones</th>
+                {isAdmin && <th>Corregida</th>}
+                <th>Acciones</th> {/* Se deja visible siempre el encabezado para cuadrar las columnas */}
               </tr>
             </thead>
             <tbody>
@@ -148,25 +153,29 @@ export default function Historial() {
                         {v.estado}
                       </span>
                     </td>
-                    <td>
-                      {v.fueCOrregida
-                        ? <span className="badge badge-yellow"
-                            title={`Por: ${v.Usuario?.username || '?'} — ${v.corregidaEn ? new Date(v.corregidaEn).toLocaleString('es-CO') : ''}`}>
-                            ✏️ Sí
-                          </span>
-                        : <span style={{ color: '#bbb' }}>—</span>}
-                    </td>
+                    
+                    {/* Celda condicional para Admin */}
+                    {isAdmin && (
+                      <td>
+                        {v.fueCOrregida
+                          ? <span className="badge badge-yellow"
+                              title={`Por: ${v.Usuario?.username || '?'} — ${v.corregidaEn ? new Date(v.corregidaEn).toLocaleString('es-CO') : ''}`}>
+                              ✏️ Sí
+                            </span>
+                          : <span style={{ color: '#bbb' }}>—</span>}
+                      </td>
+                    )}
+
                     <td>
                       <div className="historial-acciones">
-
-                        {/* Ver detalle — siempre */}
+                        {/* Ver detalle — Disponible para todos */}
                         <button className="btn btn-secondary"
                           style={{ padding: '4px 8px', fontSize: '.76rem' }}
                           onClick={() => setDetalle(detalle?.id === v.id ? null : v)}>
                           {detalle?.id === v.id ? 'Ocultar' : 'Ver'}
                         </button>
 
-                        {/* Factura — siempre que no esté anulada */}
+                        {/* Factura — Disponible para todos siempre que no esté anulada */}
                         {noAnulada && (
                           <button className="btn btn-secondary"
                             style={{ padding: '4px 8px', fontSize: '.76rem' }}
@@ -174,36 +183,41 @@ export default function Historial() {
                             title="Ver factura">🧾</button>
                         )}
 
-                        {/* Corregir — ventas no anuladas (cerradas Y guardadas) */}
-                        {noAnulada && (
-                          <button className="btn btn-secondary"
-                            style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                            onClick={() => setShowCorreccion(v)}
-                            title="Corregir venta">✏️</button>
-                        )}
+                        {/* ACCIONES EXCLUSIVAS DE ADMINISTRADOR */}
+                        {isAdmin && (
+                          <>
+                            {/* Corregir — ventas no anuladas */}
+                            {noAnulada && (
+                              <button className="btn btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '.76rem' }}
+                                onClick={() => setShowCorreccion(v)}
+                                title="Corregir venta">✏️</button>
+                            )}
 
-                        {/* Reembolso — solo ventas cerradas */}
-                        {esCerrada && (
-                          <button className="btn btn-secondary"
-                            style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                            onClick={() => setShowReembolso(v)}
-                            title="Reembolsar">↩️</button>
-                        )}
+                            {/* Reembolso — solo ventas cerradas */}
+                            {esCerrada && (
+                              <button className="btn btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '.76rem' }}
+                                onClick={() => setShowReembolso(v)}
+                                title="Reembolsar">↩️</button>
+                            )}
 
-                        {/* Abono — ventas cerradas con saldo pendiente */}
-                        {tieneSaldo && (
-                          <button className="btn btn-success"
-                            style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                            onClick={() => { setShowAbono(v); setAbonoVal(''); }}
-                            title="Registrar abono">💰 Abono</button>
-                        )}
+                            {/* Abono — ventas cerradas con saldo pendiente */}
+                            {tieneSaldo && (
+                              <button className="btn btn-success"
+                                style={{ padding: '4px 8px', fontSize: '.76rem' }}
+                                onClick={() => { setShowAbono(v); setAbonoVal(''); }}
+                                title="Registrar abono">💰 Abono</button>
+                            )}
 
-                        {/* Anular — ventas no anuladas */}
-                        {noAnulada && (
-                          <button className="btn btn-danger"
-                            style={{ padding: '4px 8px', fontSize: '.76rem' }}
-                            onClick={() => setShowAnular(v)}
-                            title="Anular venta">🗑</button>
+                            {/* Anular — ventas no anuladas */}
+                            {noAnulada && (
+                              <button className="btn btn-danger"
+                                style={{ padding: '4px 8px', fontSize: '.76rem' }}
+                                onClick={() => setShowAnular(v)}
+                                title="Anular venta">🗑</button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>
@@ -232,10 +246,10 @@ export default function Historial() {
               {detalle.items?.map(item => (
                 <tr key={item.id || item.productoId}>
                   <td>
-  {item.Producto?.nombre || item.nombreProducto
-    ? (item.Producto?.nombre || item.nombreProducto) + (item.productoId === null ? ' (eliminado)' : '')
-    : '(producto eliminado)'}
-</td>
+                    {item.Producto?.nombre || item.nombreProducto
+                      ? (item.Producto?.nombre || item.nombreProducto) + (item.productoId === null ? ' (eliminado)' : '')
+                      : '(producto eliminado)'}
+                  </td>
                   <td>{formatCOP(item.price)}</td>
                   <td>{item.quantity}</td>
                   <td>{formatCOP(item.subtotal)}</td>
@@ -323,7 +337,7 @@ export default function Historial() {
         </div>
       )}
 
-      {/* Modales de corrección, reembolso y factura */}
+      {/* Modales secundarios */}
       {showFactura && (
         <Factura venta={showFactura} onClose={() => setShowFactura(null)} />
       )}

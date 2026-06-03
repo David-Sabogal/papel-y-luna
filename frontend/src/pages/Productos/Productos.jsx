@@ -2,17 +2,21 @@ import { useState, useEffect } from 'react';
 import client from '../../api/client';
 import './Productos.css';
 import ImageUploader from '../../components/ImageUploader';
+import { useAuth } from '../../context/AuthContext';
 
 const formatCOP = (v) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v || 0);
 
 const empty = {
   nombre: '', descripcion: '', precio: '', costo: '',
-  categoriaId: '', stock: '', unidadVenta: 'unidad',
-  codigoInterno: '', codigoBarras: '', badge: '', imagen: '',
+  categoriaId: '', stock: '', codigoInterno: '',
+  vim: '', badge: '', imagen: '',
 };
 
 export default function Productos() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [productos, setProductos]   = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [busqueda, setBusqueda]     = useState('');
@@ -61,9 +65,8 @@ export default function Productos() {
       costo:         p.costo || '',
       categoriaId:   p.categoriaId || '',
       stock:         p.stock ?? '',
-      unidadVenta:   p.unidadVenta || 'unidad',
       codigoInterno: p.codigoInterno || '',
-      codigoBarras:  p.codigoBarras || '',
+      vim:           p.codigoBarras || '',
       badge:         p.badge || '',
       imagen:        p.imagen || '',
     });
@@ -86,9 +89,8 @@ export default function Productos() {
         costo:         parseFloat(form.costo) || 0,
         categoriaId:   form.categoriaId || null,
         stock:         parseFloat(form.stock) || 0,
-        unidadVenta:   form.unidadVenta || 'unidad',
         codigoInterno: form.codigoInterno || null,
-        codigoBarras:  form.codigoBarras || null,
+        codigoBarras:  form.vim || null,
         badge:         form.badge || null,
         imagen:        form.imagen || null,
       };
@@ -125,11 +127,14 @@ export default function Productos() {
     <div>
       <div className="page-header">
         <h1 className="page-title">📦 Productos</h1>
-        <button className="btn btn-primary" onClick={abrirNuevo}>+ Nuevo producto</button>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={abrirNuevo}>+ Nuevo producto</button>
+        )}
       </div>
 
-      {msg && !showForm && (
-        <div className={`productos-msg ${msg.tipo === 'error' ? 'msg-error' : 'msg-success'}`}>
+      {msg && (
+        <div className={`productos-msg ${msg.tipo === 'error' ? 'msg-error' : 'msg-success'}`}
+          style={{ marginBottom: 14 }}>
           {msg.texto}
         </div>
       )}
@@ -149,16 +154,16 @@ export default function Productos() {
               <th>Nombre</th>
               <th>Categoría</th>
               <th>Precio venta</th>
-              <th>Costo</th>
+              {isAdmin && <th>Costo</th>}
               <th>Stock</th>
               <th>Código</th>
-              <th>Acciones</th>
+              {isAdmin && <th>Acciones</th>}
             </tr>
           </thead>
           <tbody>
             {filtrados.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>
+                <td colSpan={isAdmin ? 7 : 5} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>
                   No hay productos
                 </td>
               </tr>
@@ -184,27 +189,29 @@ export default function Productos() {
                     <span style={{ color: '#bbb' }}>—</span>}
                 </td>
                 <td>{formatCOP(p.precio)}</td>
-                <td>{formatCOP(p.costo)}</td>
+                {isAdmin && <td>{formatCOP(p.costo)}</td>}
                 <td>
                   <span className={`badge ${p.stock < 5 ? 'badge-red' : 'badge-green'}`}>
                     {p.stock}
                   </span>
                 </td>
                 <td>{p.codigoInterno || <span style={{ color: '#bbb' }}>—</span>}</td>
-                <td>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="btn btn-secondary"
-                      style={{ padding: '4px 10px', fontSize: '.78rem' }}
-                      onClick={() => abrirEditar(p)}>
-                      Editar
-                    </button>
-                    <button className="btn btn-danger"
-                      style={{ padding: '4px 10px', fontSize: '.78rem' }}
-                      onClick={() => setPendingDelete({ id: p.id, nombre: p.nombre })}>
-                      Eliminar
-                    </button>
-                  </div>
-                </td>
+                {isAdmin && (
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="btn btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '.78rem' }}
+                        onClick={() => abrirEditar(p)}>
+                        Editar
+                      </button>
+                      <button className="btn btn-danger"
+                        style={{ padding: '4px 10px', fontSize: '.78rem' }}
+                        onClick={() => setPendingDelete({ id: p.id, nombre: p.nombre })}>
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -231,8 +238,8 @@ export default function Productos() {
         </div>
       )}
 
-      {/* Modal formulario */}
-      {showForm && (
+      {/* Modal formulario — solo ADMIN */}
+      {showForm && isAdmin && (
         <div className="modal-overlay">
           <div className="modal-box modal-wide">
             <h3>{editId ? 'Editar producto' : 'Nuevo producto'}</h3>
@@ -247,7 +254,6 @@ export default function Productos() {
             <form onSubmit={guardar} className="producto-form">
               <div className="form-grid">
 
-                {/* Imagen — ocupa todo el ancho */}
                 <div className="field" style={{ gridColumn: '1 / -1' }}>
                   <label>Imagen del producto</label>
                   <ImageUploader
@@ -256,7 +262,6 @@ export default function Productos() {
                   />
                 </div>
 
-                {/* Nombre — ocupa todo el ancho */}
                 <div className="field" style={{ gridColumn: '1 / -1' }}>
                   <label>Nombre *</label>
                   <input
@@ -269,8 +274,7 @@ export default function Productos() {
 
                 <div className="field">
                   <label>Precio de venta *</label>
-                  <input
-                    required type="number" min="0" placeholder="0"
+                  <input required type="number" min="0" placeholder="0"
                     value={form.precio}
                     onChange={e => setForm({ ...form, precio: e.target.value })}
                   />
@@ -278,8 +282,7 @@ export default function Productos() {
 
                 <div className="field">
                   <label>Costo (precio de compra)</label>
-                  <input
-                    type="number" min="0" placeholder="0"
+                  <input type="number" min="0" placeholder="0"
                     value={form.costo}
                     onChange={e => setForm({ ...form, costo: e.target.value })}
                   />
@@ -287,8 +290,7 @@ export default function Productos() {
 
                 <div className="field">
                   <label>Stock actual</label>
-                  <input
-                    type="number" min="0" placeholder="0"
+                  <input type="number" min="0" placeholder="0"
                     value={form.stock}
                     onChange={e => setForm({ ...form, stock: e.target.value })}
                   />
@@ -306,15 +308,6 @@ export default function Productos() {
                 </div>
 
                 <div className="field">
-                  <label>Unidad de venta</label>
-                  <select value={form.unidadVenta}
-                    onChange={e => setForm({ ...form, unidadVenta: e.target.value })}>
-                    <option value="unidad">Por unidad</option>
-                    <option value="medida">Por medida (peso/metro)</option>
-                  </select>
-                </div>
-
-                <div className="field">
                   <label>Código interno</label>
                   <input placeholder="Ej: CUA-001"
                     value={form.codigoInterno}
@@ -323,10 +316,10 @@ export default function Productos() {
                 </div>
 
                 <div className="field">
-                  <label>Código de barras</label>
+                  <label>VIM</label>
                   <input placeholder="Opcional"
-                    value={form.codigoBarras}
-                    onChange={e => setForm({ ...form, codigoBarras: e.target.value })}
+                    value={form.vim}
+                    onChange={e => setForm({ ...form, vim: e.target.value })}
                   />
                 </div>
 

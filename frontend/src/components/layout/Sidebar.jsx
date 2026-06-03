@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
-const navItems = [
+const adminItems = [
   { to: '/venta',       icon: '🛒', label: 'Nueva Venta' },
   { to: '/historial',   icon: '📋', label: 'Ventas' },
   { to: '/productos',   icon: '📦', label: 'Productos' },
@@ -15,6 +15,14 @@ const navItems = [
   { to: '/reportes',    icon: '📊', label: 'Reportes' },
 ];
 
+const cajeroItems = [
+  { to: '/venta',     icon: '🛒', label: 'Nueva Venta' },
+  { to: '/historial', icon: '📋', label: 'Ventas' },
+  { to: '/productos', icon: '📦', label: 'Productos' },
+  { to: '/clientes',  icon: '👥', label: 'Clientes' },
+  { to: '/faltantes', icon: '⚠️',  label: 'Faltantes' },
+];
+
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -23,6 +31,8 @@ export default function Sidebar() {
     logout();
     navigate('/login');
   };
+
+  const navItems = user?.role === 'ADMIN' ? adminItems : cajeroItems;
 
   return (
     <aside className="sidebar">
