@@ -11,5 +11,6 @@ router.use('/proveedores', require('./proveedores.routes'));
 router.use('/descuentos',  require('./descuentos.routes'));
 router.use('/faltantes',   require('./faltantes.routes'));
 router.use('/compras',     require('./compras.routes'));
+router.use('/finanzas',    require('./finanzas.routes'));
 
 module.exports = router;

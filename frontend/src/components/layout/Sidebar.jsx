@@ -12,6 +12,7 @@ const adminItems = [
   { to: '/proveedores', icon: '🤝', label: 'Proveedores' },
   { to: '/clientes',    icon: '👥', label: 'Clientes' },
   { to: '/faltantes',   icon: '⚠️',  label: 'Faltantes' },
+  { to: '/finanzas', icon: '💰', label: 'Finanzas' },
   { to: '/reportes',    icon: '📊', label: 'Reportes' },
 ];
 
