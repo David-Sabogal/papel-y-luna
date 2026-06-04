@@ -13,6 +13,7 @@ import Compras    from './pages/Compras/Compras';
 import Proveedores from './pages/Proveedores/Proveedores';
 import Clientes   from './pages/Clientes/Clientes';
 import Faltantes  from './pages/Faltantes/Faltantes';
+import Finanzas   from './pages/Finanzas/Finanzas'; // ← 1. Importación agregada
 import Reportes   from './pages/Reportes/Reportes';
 
 import './styles/global.css';
@@ -77,6 +78,13 @@ function App() {
           <Route path="/faltantes" element={
             <PrivateRoute>
               <Layout><Faltantes /></Layout>
+            </PrivateRoute>
+          } />
+
+          {/* 2. Ruta protegida de Finanzas para el ADMIN agregada correctamente */}
+          <Route path="/finanzas" element={
+            <PrivateRoute role="ADMIN">
+              <Layout><Finanzas /></Layout>
             </PrivateRoute>
           } />
 
