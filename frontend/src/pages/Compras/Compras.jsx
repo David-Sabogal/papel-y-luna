@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import client from '../../api/client';
 
 const formatCOP = (v) =>
