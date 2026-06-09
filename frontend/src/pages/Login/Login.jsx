@@ -22,7 +22,7 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
+  }; //cambios nuevos de la empresa
 
   return (
     <div className="login-bg">
