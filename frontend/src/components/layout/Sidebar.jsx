@@ -11,7 +11,7 @@ const adminItems = [
   { to: '/compras',     icon: '🚚', label: 'Compras' },
   { to: '/proveedores', icon: '🤝', label: 'Proveedores' },
   { to: '/clientes',    icon: '👥', label: 'Clientes' },
-  { to: '/faltantes',   icon: '⚠️',  label: 'Faltantes' },
+  { to: '/faltantes', icon: '📝', label: 'Tareas' },
   { to: '/finanzas', icon: '💰', label: 'Finanzas' },
   { to: '/reportes',    icon: '📊', label: 'Reportes' },
 ];
@@ -21,7 +21,7 @@ const cajeroItems = [
   { to: '/historial', icon: '📋', label: 'Ventas' },
   { to: '/productos', icon: '📦', label: 'Productos' },
   { to: '/clientes',  icon: '👥', label: 'Clientes' },
-  { to: '/faltantes', icon: '⚠️',  label: 'Faltantes' },
+  { to: '/faltantes', icon: '📝', label: 'Tareas' },
 ];
 
 export default function Sidebar() {

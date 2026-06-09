@@ -15,43 +15,36 @@ exports.create = async (req, res, next) => {
     if (!venta) { await t.rollback(); return res.status(404).json({ error: 'Venta no encontrada' }); }
     if (venta.estado === 'anulada') { await t.rollback(); return res.status(400).json({ error: 'No se puede reembolsar una venta anulada' }); }
 
-    // Calcular cuánto ya fue reembolsado por producto
+    // Cuánto ya fue reembolsado por producto
     const reembolsosPrevios = await Reembolso.findAll({
       where: { ventaId },
       include: [{ model: ReembolsoItem }],
     });
 
     const yaReembolsadoPorProducto = {};
-    let totalYaReembolsado = 0;
     for (const r of reembolsosPrevios) {
-      totalYaReembolsado += r.montoTotal || 0;
       for (const ri of r.ReembolsoItems) {
         yaReembolsadoPorProducto[ri.productoId] = (yaReembolsadoPorProducto[ri.productoId] || 0) + ri.cantidad;
       }
     }
 
-    // Validar cantidades disponibles
+    // Validar cantidades
     for (const item of items) {
       const ventaItem = venta.items.find(vi => vi.productoId === item.productoId);
-      if (!ventaItem) {
-        await t.rollback();
-        return res.status(404).json({ error: `Producto ${item.productoId} no encontrado en la venta` });
-      }
-      const yaReembolsado = yaReembolsadoPorProducto[item.productoId] || 0;
-      const disponible = ventaItem.quantity - yaReembolsado;
+      if (!ventaItem) { await t.rollback(); return res.status(404).json({ error: `Producto no encontrado en la venta` }); }
+      const disponible = ventaItem.quantity - (yaReembolsadoPorProducto[item.productoId] || 0);
       if (item.cantidad > disponible) {
         await t.rollback();
-        return res.status(400).json({
-          error: `Solo puedes reembolsar ${disponible} unidad(es) de este producto`,
-        });
+        return res.status(400).json({ error: `Solo puedes reembolsar ${disponible} unidad(es)` });
       }
     }
 
-    // Calcular monto del reembolso
-    // Para ventas Debe: si abono = 0, no hay nada monetario que reembolsar
-    // pero sí se puede revertir el saldo de deuda y el inventario
-    const esDebe = venta.metodoPago === 'Debe';
-    const totalPagado = venta.valorRecibido || 0; // lo que realmente pagó el cliente
+    // ── Factor de descuento aplicado a la venta ───────────────────
+    // Si el total es menor al subtotal, hay descuento proporcional
+    const factorDescuento = venta.subtotal > 0 ? venta.total / venta.subtotal : 1;
+
+    const esDebe      = venta.metodoPago === 'Debe';
+    const totalPagado = venta.valorRecibido || 0;
 
     let montoTotal = 0;
     const itemsProcesados = [];
@@ -60,50 +53,39 @@ exports.create = async (req, res, next) => {
       const ventaItem = venta.items.find(vi => vi.productoId === item.productoId);
       let montoReembolso = 0;
 
+      // Precio real pagado por unidad = precio * factorDescuento
+      const precioConDescuento = ventaItem.price * factorDescuento;
+
       if (esDebe) {
         if (totalPagado > 0 && venta.total > 0) {
-          // Proporcional a lo pagado
-          const proporcionItem = (ventaItem.price * item.cantidad) / venta.total;
-          const montoMaxItem = proporcionItem * totalPagado;
-          // Descontar lo ya reembolsado de este ítem
-          const yaReembolsadoItem = (yaReembolsadoPorProducto[item.productoId] || 0) > 0
-            ? (ventaItem.price * (yaReembolsadoPorProducto[item.productoId] || 0) / venta.total) * totalPagado
-            : 0;
-          montoReembolso = Math.max(montoMaxItem - yaReembolsadoItem, 0);
-          montoReembolso = parseFloat(montoReembolso.toFixed(2));
+          const proporcion = (precioConDescuento * item.cantidad) / venta.total;
+          montoReembolso = parseFloat((proporcion * totalPagado).toFixed(2));
         } else {
-          // Abono = 0: el reembolso monetario es 0, pero se procesa para revertir inventario y deuda
           montoReembolso = 0;
         }
       } else {
-        montoReembolso = ventaItem.price * item.cantidad;
+        // Pago normal: devolver precio con descuento aplicado
+        montoReembolso = parseFloat((precioConDescuento * item.cantidad).toFixed(2));
       }
 
       montoTotal += montoReembolso;
-      itemsProcesados.push({
-        ...item,
-        montoReembolso,
-        productoId: ventaItem.productoId,
-        cantidadVendida: ventaItem.quantity,
-      });
+      itemsProcesados.push({ ...item, montoReembolso, productoId: ventaItem.productoId, cantidadVendida: ventaItem.quantity });
     }
 
     const reembolso = await Reembolso.create({
-      ventaId,
-      tipo,
-      montoTotal,
-      fuente:        fuente || 'Caja',
+      ventaId, tipo, montoTotal,
+      fuente: fuente || 'Caja',
       observaciones: observaciones || null,
-      usuarioId:     req.user?.sub || null,
+      usuarioId: req.user?.sub || null,
     }, { transaction: t });
 
     for (const item of itemsProcesados) {
       await ReembolsoItem.create({
-        reembolsoId:       reembolso.id,
-        ventaItemId:       item.productoId,
-        productoId:        item.productoId,
-        cantidad:          item.cantidad,
-        montoReembolso:    item.montoReembolso,
+        reembolsoId: reembolso.id,
+        ventaItemId: item.productoId,
+        productoId:  item.productoId,
+        cantidad:    item.cantidad,
+        montoReembolso: item.montoReembolso,
         retornaInventario: item.retornaInventario !== false,
       }, { transaction: t });
 
@@ -115,59 +97,39 @@ exports.create = async (req, res, next) => {
       }
     }
 
-    // Verificar si con este reembolso ya se devolvió TODO
-    const totalItemsVendidos = venta.items.reduce((s, i) => s + i.quantity, 0);
+    // Verificar si se reembolsó todo
+    const totalItemsVendidos     = venta.items.reduce((s, i) => s + i.quantity, 0);
     const totalItemsReembolsados = Object.values({
       ...yaReembolsadoPorProducto,
-      ...Object.fromEntries(
-        itemsProcesados.map(i => [
-          i.productoId,
-          (yaReembolsadoPorProducto[i.productoId] || 0) + i.cantidad,
-        ])
-      ),
+      ...Object.fromEntries(itemsProcesados.map(i => [
+        i.productoId,
+        (yaReembolsadoPorProducto[i.productoId] || 0) + i.cantidad,
+      ])),
     }).reduce((s, v) => s + v, 0);
 
     const reembolsoCompleto = totalItemsReembolsados >= totalItemsVendidos;
 
     if (tipo === 'total' || reembolsoCompleto) {
-      // Marcar venta como anulada
       await venta.update({ estado: 'anulada' }, { transaction: t });
-
-      // Limpiar saldo completo del cliente
       if (venta.saldoDebe > 0 && venta.clienteId) {
         const cliente = await Cliente.findByPk(venta.clienteId, { transaction: t });
         if (cliente) {
-          await cliente.update(
-            { saldoDebe: Math.max((cliente.saldoDebe || 0) - venta.saldoDebe, 0) },
-            { transaction: t }
-          );
+          await cliente.update({ saldoDebe: Math.max((cliente.saldoDebe || 0) - venta.saldoDebe, 0) }, { transaction: t });
         }
       }
     } else if (tipo === 'parcial' && esDebe && venta.clienteId) {
-      // Reembolso parcial en venta Debe:
-      // Calcular qué porción del saldo pendiente corresponde a los ítems devueltos
-      const proporcionDevuelta = itemsProcesados.reduce((s, i) => {
-        return s + (i.cantidadVendida > 0 ? i.cantidad / i.cantidadVendida : 0);
-      }, 0) / venta.items.length;
-
+      const proporcionDevuelta = itemsProcesados.reduce((s, i) => s + i.cantidad / i.cantidadVendida, 0) / venta.items.length;
       const reduccionSaldo = parseFloat((venta.saldoDebe * proporcionDevuelta).toFixed(2));
-      const nuevoSaldo = Math.max(venta.saldoDebe - reduccionSaldo, 0);
-
       if (reduccionSaldo > 0) {
-        await venta.update({ saldoDebe: nuevoSaldo }, { transaction: t });
+        await venta.update({ saldoDebe: Math.max(venta.saldoDebe - reduccionSaldo, 0) }, { transaction: t });
         const cliente = await Cliente.findByPk(venta.clienteId, { transaction: t });
-        if (cliente) {
-          await cliente.update(
-            { saldoDebe: Math.max((cliente.saldoDebe || 0) - reduccionSaldo, 0) },
-            { transaction: t }
-          );
-        }
+        if (cliente) await cliente.update({ saldoDebe: Math.max((cliente.saldoDebe || 0) - reduccionSaldo, 0) }, { transaction: t });
       }
     }
 
     await t.commit();
-    const reembolsoResult = await Reembolso.findByPk(reembolso.id, { include: [ReembolsoItem] });
-    res.status(201).json(reembolsoResult);
+    const result = await Reembolso.findByPk(reembolso.id, { include: [ReembolsoItem] });
+    res.status(201).json(result);
   } catch (err) { await t.rollback(); next(err); }
 };
 

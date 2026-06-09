@@ -72,7 +72,9 @@ export default function Finanzas() {
   const guardarGasto = async (e) => {
     e.preventDefault();
     try {
-      await client.post('/api/finanzas/gastos', formGasto);
+      // Pasamos el monto a Number para prevenir fallos en SQLite
+      const payloadGasto = { ...formGasto, monto: Number(formGasto.monto) || 0 };
+      await client.post('/api/finanzas/gastos', payloadGasto);
       setShowGasto(false); setFormGasto(emptyGasto);
       mostrarMsg('Gasto registrado');
       cargar();
@@ -91,7 +93,8 @@ export default function Finanzas() {
   const guardarCapital = async (e) => {
     e.preventDefault();
     try {
-      await client.post('/api/finanzas/capital', formCapital);
+      const payloadCapital = { ...formCapital, monto: Number(formCapital.monto) || 0 };
+      await client.post('/api/finanzas/capital', payloadCapital);
       setShowCapital(false); setFormCapital(emptyCapital);
       mostrarMsg('Capital registrado');
       cargar();
@@ -187,6 +190,7 @@ export default function Finanzas() {
           { key: 'gastos',    label: '📋 Gastos' },
           { key: 'capital',   label: '💼 Capital' },
           { key: 'historico', label: '📅 Histórico mensual' },
+          { key: 'todo',      label: '📒 Todo' },
         ].map(t => (
           <button key={t.key}
             className={`btn ${tab === t.key ? 'btn-primary' : 'btn-secondary'}`}
@@ -384,6 +388,114 @@ export default function Finanzas() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── Tab Todo ── */}
+      {!loading && tab === 'todo' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Ventas */}
+          <div className="card table-wrap">
+            <h3 style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0f0', fontSize: '.95rem', fontWeight: 700 }}>
+              💰 Ventas cerradas
+            </h3>
+            <table>
+              <thead><tr><th>Fecha</th><th>Cliente</th><th>Total</th><th>Método</th></tr></thead>
+              <tbody>
+                {dash?.kpis?.totalVentas === 0 || !dash?.flujoMensual?.some(m => m.ingresos > 0) ? (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: 16, color: '#bbb' }}>Sin ventas</td></tr>
+                ) : dash.flujoMensual.filter(m => m.ingresos > 0).map((m, i) => (
+                  <tr key={i}>
+                    <td>{new Date(m.mes + '-01').toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })}</td>
+                    <td style={{ color: '#888' }}>—</td>
+                    <td style={{ color: '#2e7d32', fontWeight: 700 }}>{formatCOP(m.ingresos)}</td>
+                    <td>—</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Compras */}
+          <div className="card table-wrap">
+            <h3 style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0f0', fontSize: '.95rem', fontWeight: 700 }}>
+              🚚 Compras
+            </h3>
+            <table>
+              <thead><tr><th>Mes</th><th>Total compras</th></tr></thead>
+              <tbody>
+                {!dash?.flujoMensual?.some(m => m.compras > 0) ? (
+                  <tr><td colSpan={2} style={{ textAlign: 'center', padding: 16, color: '#bbb' }}>Sin compras</td></tr>
+                ) : dash.flujoMensual.filter(m => m.compras > 0).map((m, i) => (
+                  <tr key={i}>
+                    <td>{new Date(m.mes + '-01').toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })}</td>
+                    <td style={{ color: '#e03a3a', fontWeight: 700 }}>{formatCOP(m.compras)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Gastos */}
+          <div className="card table-wrap">
+            <h3 style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0f0', fontSize: '.95rem', fontWeight: 700 }}>
+              📋 Gastos administrativos
+            </h3>
+            <table>
+              <thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Monto</th></tr></thead>
+              <tbody>
+                {gastos.length === 0 ? (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: 16, color: '#bbb' }}>Sin gastos</td></tr>
+                ) : gastos.map(g => (
+                  <tr key={g.id}>
+                    <td style={{ whiteSpace: 'nowrap' }}>{g.fecha}</td>
+                    <td>{g.descripcion}</td>
+                    <td><span className="badge badge-yellow">{g.categoria}</span></td>
+                    <td style={{ color: '#e03a3a', fontWeight: 700 }}>{formatCOP(g.monto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Capital */}
+          <div className="card table-wrap">
+            <h3 style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0f0', fontSize: '.95rem', fontWeight: 700 }}>
+              💼 Capital e inversiones
+            </h3>
+            <table>
+              <thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Monto</th></tr></thead>
+              <tbody>
+                {capital.length === 0 ? (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: 16, color: '#bbb' }}>Sin aportes</td></tr>
+                ) : capital.map(c => (
+                  <tr key={c.id}>
+                    <td style={{ whiteSpace: 'nowrap' }}>{c.fecha}</td>
+                    <td>{c.descripcion}</td>
+                    <td><span className={`badge ${c.tipo === 'inicial' ? 'badge-blue' : 'badge-green'}`}>{c.tipo}</span></td>
+                    <td style={{ color: '#2e7d32', fontWeight: 700 }}>{formatCOP(c.monto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Resumen total */}
+          <div className={`finanzas-hero ${kpis?.valorNetoCaja >= 0 ? 'hero-positivo' : 'hero-negativo'}`}>
+            <div>
+              <p className="hero-label">Resumen financiero completo</p>
+              <p className={`hero-numero ${kpis?.valorNetoCaja >= 0 ? 'positivo' : 'negativo'}`}>
+                {formatCOP(kpis?.valorNetoCaja)}
+              </p>
+              <p className="hero-sub">Valor Neto de Caja</p>
+            </div>
+            <div className="hero-divider" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <p className="hero-sub">Ingresos: <strong style={{ color: '#4caf50' }}>{formatCOP(kpis?.totalVentas)}</strong></p>
+              <p className="hero-sub">Egresos: <strong style={{ color: '#ef5350' }}>{formatCOP(kpis?.totalEgresos)}</strong></p>
+              <p className="hero-sub">Capital: <strong style={{ color: '#90caf9' }}>{formatCOP(kpis?.totalCapital)}</strong></p>
+            </div>
+          </div>
         </div>
       )}
 

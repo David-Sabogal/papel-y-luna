@@ -20,13 +20,28 @@ export default function Productos() {
   const [productos, setProductos]   = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [busqueda, setBusqueda]     = useState('');
-  const [filtroStock, setFiltroStock] = useState(''); // ← Estado del filtro de stock agregado
+  const [filtroStock, setFiltroStock] = useState(''); 
   const [form, setForm]             = useState(empty);
   const [editId, setEditId]         = useState(null);
   const [showForm, setShowForm]     = useState(false);
   const [loading, setLoading]       = useState(false);
   const [msg, setMsg]               = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
+
+  // Estado para ver la descripción del producto en un modal
+  const [showDescripcion, setShowDescripcion] = useState(null);
+
+  // Estados para el manejo de gastos por producto
+  const [showGastosProducto, setShowGastosProducto] = useState(null); 
+  const [gastosProducto, setGastosProducto]         = useState([]);
+  const [loadingGastos, setLoadingGastos]           = useState(false);
+  const [showFormGasto, setShowFormGasto]           = useState(false);
+  const [formGasto, setFormGasto] = useState({
+    descripcion: '', 
+    categoria: 'otro', 
+    monto: '', 
+    fecha: new Date().toISOString().split('T')[0],
+  });
 
   useEffect(() => { cargar(); }, []);
 
@@ -81,6 +96,35 @@ export default function Productos() {
     setEditId(p.id);
     setShowForm(true);
     setMsg(null);
+  };
+
+  // Funciones para la gestión de gastos vinculados al producto
+  const abrirGastos = async (producto) => {
+    setShowGastosProducto(producto);
+    setLoadingGastos(true);
+    try {
+      const { data } = await client.get(`/api/finanzas/productos/${producto.id}/gastos`);
+      setGastosProducto(data);
+    } catch (err) { console.error(err); }
+    finally { setLoadingGastos(false); }
+  };
+
+  const guardarGastoProducto = async (e) => {
+    e.preventDefault();
+    try {
+      const payloadGasto = {
+        ...formGasto,
+        monto: Number(formGasto.monto) || 0
+      };
+
+      const { data } = await client.post(
+        `/api/finanzas/productos/${showGastosProducto.id}/gastos`, payloadGasto
+      );
+      setGastosProducto(prev => [data, ...prev]);
+      setShowFormGasto(false);
+      setFormGasto({ descripcion: '', categoria: 'otro', monto: '', fecha: new Date().toISOString().split('T')[0] });
+      mostrarMsg('Gasto registrado al producto');
+    } catch (err) { mostrarMsg('Error al guardar gasto', 'error'); }
   };
 
   const guardar = async (e) => {
@@ -147,7 +191,7 @@ export default function Productos() {
         </div>
       )}
 
-      {/* Caja de búsqueda y controles de filtro con flexbox */}
+      {/* Caja de búsqueda y controles de filtro */}
       <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           placeholder="Buscar por nombre o código..."
@@ -226,11 +270,25 @@ export default function Productos() {
                 <td>{p.codigoInterno || <span style={{ color: '#bbb' }}>—</span>}</td>
                 {isAdmin && (
                   <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button className="btn btn-secondary"
                         style={{ padding: '4px 10px', fontSize: '.78rem' }}
                         onClick={() => abrirEditar(p)}>
                         Editar
+                      </button>
+                      
+                      {p.descripcion && (
+                        <button className="btn btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '.78rem' }}
+                          onClick={() => setShowDescripcion(p)}>
+                          📄 Detalles
+                        </button>
+                      )}
+
+                      <button className="btn btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '.78rem', color: '#1565c0', borderColor: '#1565c0' }}
+                        onClick={() => abrirGastos(p)}>
+                        💸 Gastos
                       </button>
                       <button className="btn btn-danger"
                         style={{ padding: '4px 10px', fontSize: '.78rem' }}
@@ -379,6 +437,117 @@ export default function Productos() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de visualización y registro de gastos por producto */}
+      {showGastosProducto && (
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: 620, maxHeight: '88vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3>💸 Gastos — {showGastosProducto.nombre}</h3>
+              <button className="btn btn-secondary" style={{ padding: '4px 12px' }}
+                onClick={() => { setShowGastosProducto(null); setShowFormGasto(false); }}>✕</button>
+            </div>
+            
+            {!showFormGasto && (
+              <button className="btn btn-primary" style={{ marginBottom: 14 }}
+                onClick={() => setShowFormGasto(true)}>+ Agregar gasto</button>
+            )}
+
+            {showFormGasto && (
+              <form onSubmit={guardarGastoProducto}
+                style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 10,
+                  padding: 16, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="field"><label>Descripción *</label>
+                  <input required value={formGasto.descripcion} autoFocus
+                    onChange={e => setFormGasto({ ...formGasto, descripcion: e.target.value })}
+                    placeholder="Ej: Mantenimiento o empaque" />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  <div className="field"><label>Categoría</label>
+                    <select value={formGasto.categoria}
+                      onChange={e => setFormGasto({ ...formGasto, categoria: e.target.value })}>
+                      {['servicios','gasolina','mantenimiento','pintura','reparacion','otro'].map(c =>
+                        <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="field"><label>Monto *</label>
+                    <input required type="number" min="0" value={formGasto.monto}
+                      onChange={e => setFormGasto({ ...formGasto, monto: e.target.value })} />
+                  </div>
+                  <div className="field"><label>Fecha *</label>
+                    <input required type="date" value={formGasto.fecha}
+                      onChange={e => setFormGasto({ ...formGasto, fecha: e.target.value })} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button type="button" className="btn btn-secondary"
+                    onClick={() => setShowFormGasto(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary">Guardar gasto</button>
+                </div>
+              </form>
+            )}
+
+            {loadingGastos ? (
+              <p style={{ color: '#888', textAlign: 'center', padding: 20 }}>Cargando...</p>
+            ) : gastosProducto.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 32, color: '#bbb' }}>
+                <p style={{ fontSize: '2rem' }}>🔧</p>
+                <p>Sin gastos registrados para este producto</p>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f8f9fa' }}>
+                    <th style={{ padding: '8px', textAlign: 'left', fontSize: '.76rem' }}>Fecha</th>
+                    <th style={{ padding: '8px', textAlign: 'left', fontSize: '.76rem' }}>Descripción</th>
+                    <th style={{ padding: '8px', fontSize: '.76rem' }}>Categoría</th>
+                    <th style={{ padding: '8px', textAlign: 'right', fontSize: '.76rem' }}>Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gastosProducto.map(g => (
+                    <tr key={g.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: '8px', fontSize: '.84rem', whiteSpace: 'nowrap' }}>{g.fecha}</td>
+                      <td style={{ padding: '8px', fontSize: '.84rem' }}>{g.descripcion}</td>
+                      <td style={{ padding: '8px', textAlign: 'center' }}>
+                        <span className="badge badge-yellow">{g.categoria}</span>
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: '#e03a3a' }}>
+                        {formatCOP(g.monto)}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={{ background: '#fff8f8' }}>
+                    <td colSpan={3} style={{ padding: '10px 8px', fontWeight: 700, fontSize: '.86rem' }}>
+                      Total gastos producto
+                    </td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 800, color: '#e03a3a' }}>
+                      {formatCOP(gastosProducto.reduce((s, g) => s + Number(g.monto), 0))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal para ver la descripción detallada del producto */}
+      {showDescripcion && (
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: 480 }}>
+            <h3>📄 {showDescripcion.nombre}</h3>
+            <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '14px 16px',
+              margin: '14px 0', fontSize: '.9rem', lineHeight: 1.7, color: '#333',
+              whiteSpace: 'pre-wrap' }}>
+              {showDescripcion.descripcion}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setShowDescripcion(null)}>Cerrar</button>
+            </div>
           </div>
         </div>
       )}

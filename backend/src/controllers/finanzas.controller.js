@@ -165,3 +165,30 @@ exports.createCapital = async (req, res, next) => {
     res.status(201).json(c);
   } catch (err) { next(err); }
 };
+
+// ── Gastos por producto ───────────────────────────────────────────
+exports.listGastosProducto = async (req, res, next) => {
+  try {
+    const gastos = await Gasto.findAll({
+      where: { productoId: req.params.productoId },
+      order: [['fecha', 'DESC']],
+    });
+    res.json(gastos);
+  } catch (err) { next(err); }
+};
+
+exports.createGastoProducto = async (req, res, next) => {
+  try {
+    const { descripcion, categoria, monto, fecha } = req.body;
+    if (!descripcion || !monto || !fecha) {
+      return res.status(400).json({ error: 'descripcion, monto y fecha son requeridos' });
+    }
+    const g = await Gasto.create({
+      descripcion, categoria: categoria || 'otro',
+      monto: parseFloat(monto), fecha,
+      productoId: parseInt(req.params.productoId),
+      usuarioId: req.user?.sub || null,
+    });
+    res.status(201).json(g);
+  } catch (err) { next(err); }
+};
