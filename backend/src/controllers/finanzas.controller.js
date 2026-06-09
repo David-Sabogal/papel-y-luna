@@ -163,3 +163,16 @@ exports.createGastoProducto = async (req, res, next) => {
     res.status(201).json(g);
   } catch (err) { next(err); }
 };
+
+// Todos los gastos de vehículos (productoId no nulo)
+exports.listGastosVehiculos = async (req, res, next) => {
+  try {
+    const { Producto } = require('../models');
+    const g = await Gasto.findAll({
+      where: { productoId: { [Op.ne]: null } },
+      include: [{ model: Producto, attributes: ['id', 'nombre'] }],
+      order: [['fecha', 'DESC']],
+    });
+    res.json(g);
+  } catch (err) { next(err); }
+};

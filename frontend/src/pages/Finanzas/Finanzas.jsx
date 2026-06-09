@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
   LineElement, BarElement, Title, Tooltip, Legend, Filler,
@@ -21,19 +21,20 @@ const emptyGasto   = { descripcion: '', categoria: 'otro', monto: '', fecha: new
 const emptyCapital = { descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0], tipo: 'aporte' };
 
 export default function Finanzas() {
-  const [dash, setDash]           = useState(null);
-  const [gastos, setGastos]       = useState([]);
-  const [capital, setCapital]     = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [tab, setTab]             = useState('dashboard');
-  const [showGasto, setShowGasto] = useState(false);
-  const [showCapital, setShowCapital] = useState(false);
-  const [formGasto, setFormGasto]     = useState(emptyGasto);
-  const [formCapital, setFormCapital] = useState(emptyCapital);
-  const [msg, setMsg]             = useState(null);
+  const [dash, setDash]                   = useState(null);
+  const [gastos, setGastos]               = useState([]);
+  const [gastosVehiculos, setGastosVehiculos] = useState([]); // Nuevo estado para vehículos
+  const [capital, setCapital]             = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [tab, setTab]                     = useState('dashboard');
+  const [showGasto, setShowGasto]         = useState(false);
+  const [showCapital, setShowCapital]     = useState(false);
+  const [formGasto, setFormGasto]         = useState(emptyGasto);
+  const [formCapital, setFormCapital]     = useState(emptyCapital);
+  const [msg, setMsg]                     = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
 
-  // Filtros gastos
+  // Filtros gastos administrativos
   const [filtroDesde, setFiltroDesde]   = useState('');
   const [filtroHasta, setFiltroHasta]   = useState('');
   const [filtroCat, setFiltroCat]       = useState('');
@@ -48,14 +49,16 @@ export default function Finanzas() {
   const cargar = async () => {
     setLoading(true);
     try {
-      const [dRes, gRes, cRes] = await Promise.all([
+      const [dRes, gRes, cRes, gvRes] = await Promise.all([
         client.get('/api/finanzas/dashboard'),
         client.get('/api/finanzas/gastos'),
         client.get('/api/finanzas/capital'),
+        client.get('/api/finanzas/gastos/vehiculos'), // Nuevo endpoint integrado
       ]);
       setDash(dRes.data);
       setGastos(gRes.data);
       setCapital(cRes.data);
+      setGastosVehiculos(gvRes.data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -72,7 +75,6 @@ export default function Finanzas() {
   const guardarGasto = async (e) => {
     e.preventDefault();
     try {
-      // Pasamos el monto a Number para prevenir fallos en SQLite
       const payloadGasto = { ...formGasto, monto: Number(formGasto.monto) || 0 };
       await client.post('/api/finanzas/gastos', payloadGasto);
       setShowGasto(false); setFormGasto(emptyGasto);
@@ -186,11 +188,12 @@ export default function Finanzas() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
-          { key: 'dashboard', label: '📊 Dashboard' },
-          { key: 'gastos',    label: '📋 Gastos' },
-          { key: 'capital',   label: '💼 Capital' },
-          { key: 'historico', label: '📅 Histórico mensual' },
-          { key: 'todo',      label: '📒 Todo' },
+          { key: 'dashboard',        label: '📊 Dashboard' },
+          { key: 'gastos',           label: '📋 Gastos Admin' },
+          { key: 'gastos_vehiculos', label: '🚗 Gastos Vehículos' }, // Tab nuevo en español
+          { key: 'capital',          label: '💼 Capital' },
+          { key: 'historico',        label: '📅 Histórico mensual' },
+          { key: 'todo',             label: '📒 Todo' },
         ].map(t => (
           <button key={t.key}
             className={`btn ${tab === t.key ? 'btn-primary' : 'btn-secondary'}`}
@@ -269,7 +272,7 @@ export default function Finanzas() {
         </>
       )}
 
-      {/* ── Tab Gastos ── */}
+      {/* ── Tab Gastos Admin ── */}
       {!loading && tab === 'gastos' && (
         <>
           <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -318,6 +321,49 @@ export default function Finanzas() {
             </table>
           </div>
         </>
+      )}
+
+      {/* ── Tab Gastos Vehículos (Nuevo bloque limpio en español) ── */}
+      {!loading && tab === 'gastos_vehiculos' && (
+        <div className="card table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Vehículo</th>
+                <th>Descripción</th>
+                <th>Categoría</th>
+                <th>Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gastosVehiculos.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>
+                  No hay gastos de vehículos registrados
+                </td></tr>
+              ) : gastosVehiculos.map(g => (
+                <tr key={g.id}>
+                  <td style={{ whiteSpace: 'nowrap' }}>{g.fecha}</td>
+                  <td><strong>{g.Producto?.nombre || '—'}</strong></td>
+                  <td>{g.descripcion}</td>
+                  <td><span className="badge badge-yellow">{g.categoria}</span></td>
+                  <td><strong style={{ color: '#e03a3a' }}>{formatCOP(g.monto)}</strong></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {gastosVehiculos.length > 0 && (
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0',
+              display: 'flex', justifyContent: 'flex-end', gap: 20 }}>
+              <span style={{ fontWeight: 700 }}>
+                Total gastos de vehículos:
+                <span style={{ color: '#e03a3a', marginLeft: 8 }}>
+                  {formatCOP(gastosVehiculos.reduce((s, g) => s + g.monto, 0))}
+                </span>
+              </span>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Tab Capital ── */}
@@ -436,7 +482,7 @@ export default function Finanzas() {
             </table>
           </div>
 
-          {/* Gastos */}
+          {/* Gastos Administrativos */}
           <div className="card table-wrap">
             <h3 style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0f0', fontSize: '.95rem', fontWeight: 700 }}>
               📋 Gastos administrativos
@@ -449,6 +495,31 @@ export default function Finanzas() {
                 ) : gastos.map(g => (
                   <tr key={g.id}>
                     <td style={{ whiteSpace: 'nowrap' }}>{g.fecha}</td>
+                    <td>{g.descripcion}</td>
+                    <td><span className="badge badge-yellow">{g.categoria}</span></td>
+                    <td style={{ color: '#e03a3a', fontWeight: 700 }}>{formatCOP(g.monto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Gastos por Vehículo Integrado en el Todo */}
+          <div className="card table-wrap">
+            <h3 style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0f0', fontSize: '.95rem', fontWeight: 700 }}>
+              🚗 Gastos por vehículos
+            </h3>
+            <table>
+              <thead>
+                <tr><th>Fecha</th><th>Vehículo</th><th>Descripción</th><th>Categoría</th><th>Monto</th></tr>
+              </thead>
+              <tbody>
+                {gastosVehiculos.length === 0 ? (
+                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: 16, color: '#bbb' }}>No hay gastos de vehículos</td></tr>
+                ) : gastosVehiculos.map(g => (
+                  <tr key={g.id}>
+                    <td style={{ whiteSpace: 'nowrap' }}>{g.fecha}</td>
+                    <td><strong>{g.Producto?.nombre || '—'}</strong></td>
                     <td>{g.descripcion}</td>
                     <td><span className="badge badge-yellow">{g.categoria}</span></td>
                     <td style={{ color: '#e03a3a', fontWeight: 700 }}>{formatCOP(g.monto)}</td>

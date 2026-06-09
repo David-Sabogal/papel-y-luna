@@ -352,7 +352,7 @@ export default function Productos() {
                   <label>Nombre *</label>
                   <input
                     required
-                    placeholder="Ej: Cuaderno universitario 100 hojas"
+                    placeholder="Ej: Ferrari"
                     value={form.nombre}
                     onChange={e => setForm({ ...form, nombre: e.target.value })}
                   />

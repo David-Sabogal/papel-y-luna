@@ -90,9 +90,11 @@ export default function Historial() {
         </select>
         <select value={filtroPago} onChange={e => setFiltroPago(e.target.value)}>
           <option value="">Todos los pagos</option>
-          <option value="Efectivo">Efectivo</option>
-          <option value="Nequi">Nequi</option>
-          <option value="Débito">Débito</option>
+          <option value="Cash">Cash</option>
+          <option value="Zelle">Zelle</option>
+           <option value="CVS">CVS</option>
+           <option value="Cashier Check">Cashier Check</option>
+           <option value="Permuta">Permuta</option>
           <option value="Debe">Debe</option>
         </select>
         <select value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)}>

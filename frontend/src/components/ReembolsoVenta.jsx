@@ -6,13 +6,16 @@ const formatCOP = (v) =>
 
 export default function ReembolsoVenta({ venta, onClose }) {
   const [tipo, setTipo]     = useState('parcial');
-  const [fuente, setFuente] = useState('Caja');
-  const [observaciones, setObservaciones] = useState('');
+  const [fuente, setFuente] = useState('Cash'); // Ajustado a tus nuevas fuentes
+  const [observaciones, setObservations] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg]         = useState('');
 
   const esDebe       = venta.metodoPago === 'Debe';
   const totalPagado  = venta.valorRecibido || 0;
+
+  // Lógica de descuento proporcional integrada
+  const factorDescuento = venta.subtotal > 0 ? venta.total / venta.subtotal : 1;
 
   const [seleccion, setSeleccion] = useState(
     venta.items.map(i => ({
@@ -20,7 +23,8 @@ export default function ReembolsoVenta({ venta, onClose }) {
       nombre:            i.Producto?.nombre || '?',
       cantidad:          0,
       maxCantidad:       i.quantity,
-      precio:            i.price,
+      precioOriginal:    i.price,                      // Precio de lista original
+      precioConDesc:     i.price * factorDescuento,    // Precio real que pagó el cliente
       retornaInventario: true,
       incluir:           false,
     }))
@@ -37,19 +41,17 @@ export default function ReembolsoVenta({ venta, onClose }) {
     ? seleccion.map(i => ({ ...i, incluir: true, cantidad: i.maxCantidad }))
     : seleccion.filter(i => i.incluir && i.cantidad > 0);
 
-  // Calcular monto según tipo de pago
+  // Calcular monto aplicando el descuento proporcional
   const calcularMontoItem = (item) => {
-    if (esDebe) {
-      if (totalPagado <= 0 || venta.total <= 0) return 0;
-      const proporcion = (item.precio * item.cantidad) / venta.total;
-      return parseFloat((proporcion * totalPagado).toFixed(2));
-    }
-    return item.precio * item.cantidad;
+    const montoBase = item.precioConDesc * item.cantidad;
+    if (!esDebe) return montoBase;
+    
+    if (totalPagado <= 0 || venta.total <= 0) return 0;
+    const proporcion = montoBase / venta.total;
+    return parseFloat((proporcion * totalPagado).toFixed(2));
   };
 
   const montoTotal = itemsSeleccionados.reduce((s, i) => s + calcularMontoItem(i), 0);
-
-  // El botón se habilita si hay ítems seleccionados (aunque el monto sea 0 en Debe sin abono)
   const puedeConfirmar = itemsSeleccionados.length > 0;
 
   const guardar = async () => {
@@ -74,6 +76,19 @@ export default function ReembolsoVenta({ venta, onClose }) {
     <div className="modal-overlay">
       <div className="modal-box" style={{ maxWidth: 580, maxHeight: '90vh', overflowY: 'auto' }}>
         <h3>↩️ Reembolso — Venta #{venta.id}</h3>
+
+        {/* Alerta visual en español si la venta tuvo descuento general */}
+        {venta.descuentoValor > 0 && (
+          <div style={{ background: '#e8f5e9', border: '1px solid #c8e6c9', borderRadius: 10,
+            padding: '10px 14px', margin: '10px 0', fontSize: '.86rem', color: '#2e7d32' }}>
+            <strong>✅ Descuento aplicado en la venta</strong>
+            <p style={{ margin: '4px 0 0' }}>
+              Subtotal: <strong>{formatCOP(venta.subtotal)}</strong> → 
+              Total Pagado: <strong>{formatCOP(venta.total)}</strong> (Ahorro: {formatCOP(venta.descuentoValor)})
+              <br />El reembolso se calcula basado en el valor real pagado por cada ítem.
+            </p>
+          </div>
+        )}
 
         {esDebe && (
           <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 10,
@@ -130,7 +145,14 @@ export default function ReembolsoVenta({ venta, onClose }) {
                         onChange={() => toggleItem(item.productoId)} />
                     </td>
                   )}
-                  <td style={{ padding: '8px', fontSize: '.86rem' }}>{item.nombre}</td>
+                  <td style={{ padding: '8px', fontSize: '.86rem' }}>
+                    <div>{item.nombre}</div>
+                    {venta.descuentoValor > 0 && (
+                      <div style={{ fontSize: '.72rem', color: '#888' }}>
+                        Lista: {formatCOP(item.precioOriginal)} → Pagó: {formatCOP(item.precioConDesc)}
+                      </div>
+                    )}
+                  </td>
                   <td style={{ padding: '8px', textAlign: 'center', color: '#888' }}>/{item.maxCantidad}</td>
                   {tipo === 'parcial' && (
                     <td style={{ padding: '8px' }}>
@@ -166,14 +188,17 @@ export default function ReembolsoVenta({ venta, onClose }) {
           <div className="field">
             <label>Fuente del reembolso</label>
             <select value={fuente} onChange={e => setFuente(e.target.value)}>
-              <option>Caja</option>
-              <option>Nequi</option>
-              <option>Transferencia</option>
+              <option>Cashier Check</option>
+              <option>Adesa</option>
+              <option>Manheim</option>
+              <option>Cash</option>
+              <option>Copart</option>
+              <option>IAA</option>
             </select>
           </div>
           <div className="field">
             <label>Observaciones</label>
-            <input value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Opcional" />
+            <input value={observaciones} onChange={e => setObservations(e.target.value)} placeholder="Opcional" />
           </div>
         </div>
 

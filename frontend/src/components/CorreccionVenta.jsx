@@ -176,7 +176,7 @@ export default function CorreccionVenta({ venta, onClose }) {
           </div>
           <div className="field"><label>Método de pago</label>
             <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
-              {['Efectivo','Nequi','Débito','Debe'].map(m => <option key={m}>{m}</option>)}
+              {['Cash', 'Zelle', 'CVS', 'Cashier Check', 'Permuta', 'Debe'].map(m => <option key={m}>{m}</option>)}
             </select>
           </div>
           {metodoPago === 'Efectivo' && (
