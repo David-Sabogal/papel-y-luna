@@ -38,8 +38,8 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <span className="brand-icon">🌙</span>
-        <span className="brand-name">Papel & Luna</span>
+        <span className="brand-icon">🚗</span>
+        <span className="brand-name">FT Vanguard Group</span>
       </div>
 
       <div className="sidebar-user">

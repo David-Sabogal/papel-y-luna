@@ -17,7 +17,7 @@ export default function Venta() {
   const [clientes, setClientes]     = useState([]);
   const [descuentos, setDescuentos] = useState([]);
   const [descuentoId, setDescuentoId] = useState('');
-  const [metodoPago, setMetodoPago] = useState('Efectivo');
+  const [metodoPago, setMetodoPago] = useState('Cash'); // Cambiado a 'Cash' por defecto
   const [valorRecibido, setValorRecibido] = useState('');
   const [abonoInicial, setAbonoInicial]   = useState('');
   const [ventaGuardada, setVentaGuardada] = useState(null);
@@ -30,6 +30,10 @@ export default function Venta() {
   const [categoriaFiltro, setCategoriaFiltro] = useState('');
   const [categorias, setCategorias] = useState([]);
   const searchRef = useRef(null);
+
+  // Nuevos estados para Permuta agregados por Claude
+  const [permuteCarValue, setPermuteCarValue] = useState('');
+  const [permuteExtraMethod, setPermuteExtraMethod] = useState('Cash');
 
   useEffect(() => { cargarDatos(); searchRef.current?.focus(); }, []);
 
@@ -96,7 +100,8 @@ export default function Venta() {
 
   const limpiarVenta = () => {
     setItems([]); setCliente(null); setDescuentoId('');
-    setMetodoPago('Efectivo'); setValorRecibido(''); setAbonoInicial('');
+    setMetodoPago('Cash'); setValorRecibido(''); setAbonoInicial('');
+    setPermuteCarValue(''); setPermuteExtraMethod('Cash');
     setVentaGuardada(null); setBusqueda('');
     searchRef.current?.focus();
   };
@@ -111,7 +116,7 @@ export default function Venta() {
   })();
 
   const total = Math.max(subtotal - descuentoValor, 0);
-  const cambio = metodoPago === 'Efectivo' ? Math.max((parseFloat(valorRecibido) || 0) - total, 0) : 0;
+  const cambio = metodoPago === 'Cash' ? Math.max((parseFloat(valorRecibido) || 0) - total, 0) : 0;
   const saldoDebe = metodoPago === 'Debe' ? Math.max(total - (parseFloat(abonoInicial) || 0), 0) : 0;
 
   const mostrarMsg = (texto, tipo = 'success') => {
@@ -138,7 +143,7 @@ export default function Venta() {
 
   const cobrar = async () => {
     if (items.length === 0) return mostrarMsg('Agrega productos primero', 'error');
-    if (metodoPago === 'Efectivo' && (parseFloat(valorRecibido) || 0) < total) {
+    if (metodoPago === 'Cash' && (parseFloat(valorRecibido) || 0) < total) {
       return mostrarMsg('El valor recibido es menor al total', 'error');
     }
     if (metodoPago === 'Debe' && !cliente) {
@@ -146,13 +151,17 @@ export default function Venta() {
     }
     setLoading(true);
     try {
+      // Payload modificado con los datos de permuta que dio Claude
       const payload = {
         items, clienteId: cliente?.id || null,
         descuentoId: descuentoId || null,
         metodoPago, valorRecibido: parseFloat(valorRecibido) || 0,
         abonoInicial: parseFloat(abonoInicial) || 0,
+        permuteCarValue: metodoPago === 'Permuta' ? parseFloat(permuteCarValue) || 0 : 0,
+        permuteExtraMethod: metodoPago === 'Permuta' ? permuteExtraMethod : null,
         estado: 'cerrada',
       };
+      
       let data;
       if (ventaGuardada) {
         const res = await client.put(`/api/ventas/${ventaGuardada.id}/corregir`, payload);
@@ -176,7 +185,7 @@ export default function Venta() {
       quantity: i.quantity, subtotal: i.price * i.quantity,
       imagen: i.Producto?.imagen,
     })));
-    setMetodoPago(venta.metodoPago || 'Efectivo');
+    setMetodoPago(venta.metodoPago || 'Cash');
     setCliente(venta.Cliente || null);
     setDescuentoId(venta.descuentoId || '');
     setShowVentasAbiertas(false);
@@ -423,33 +432,66 @@ export default function Venta() {
           <div className="total-row total-final"><span>TOTAL</span><span>{formatCOP(total)}</span></div>
         </div>
 
+        {/* Bloque de Métodos de Pago y Lógica de Permuta provisto por Claude */}
         <div className="right-section">
           <label className="right-label">Método de pago</label>
           <div className="metodos-pago">
-            {['Efectivo', 'Nequi', 'Débito', 'Debe'].map(m => (
-              <button key={m} className={`metodo-btn ${metodoPago === m ? 'metodo-active' : ''}`}
-                onClick={() => setMetodoPago(m)}>{m}</button>
+            {['Cash', 'Zelle', 'CVS', 'Cashier Check', 'Permuta', 'Debe'].map(m => (
+              <button
+                key={m}
+                className={`metodo-btn ${metodoPago === m ? 'metodo-active' : ''}`}
+                onClick={() => setMetodoPago(m)}
+              >{m}</button>
             ))}
           </div>
         </div>
 
-        {metodoPago === 'Efectivo' && (
+        {metodoPago === 'Cash' && (
           <div className="right-section">
-            <label className="right-label">Valor recibido</label>
+            <label className="right-label">Amount received</label>
             <input type="number" placeholder="0" value={valorRecibido}
               onChange={e => setValorRecibido(e.target.value)} />
-            {cambio > 0 && <p className="cambio-text">Cambio: <strong>{formatCOP(cambio)}</strong></p>}
+            {cambio > 0 && <p className="cambio-text">Change: <strong>{formatCOP(cambio)}</strong></p>}
+          </div>
+        )}
+
+        {metodoPago === 'Permuta' && (
+          <div className="right-section">
+            <label className="right-label">🚗 Trade-in vehicle value</label>
+            <input type="number" placeholder="0" min="0" value={permuteCarValue}
+              onChange={e => setPermuteCarValue(e.target.value)} />
+            {permuteCarValue && parseFloat(permuteCarValue) < total && (
+              <>
+                <p className="cambio-text" style={{ color: '#1565c0', marginTop: 6 }}>
+                  Remaining: <strong>{formatCOP(total - parseFloat(permuteCarValue))}</strong>
+                </p>
+                <label className="right-label" style={{ marginTop: 8 }}>Pay remainder with</label>
+                <div className="metodos-pago" style={{ marginTop: 4 }}>
+                  {['Cash', 'Zelle', 'CVS', 'Cashier Check'].map(m => (
+                    <button key={m}
+                      className={`metodo-btn ${permuteExtraMethod === m ? 'metodo-active' : ''}`}
+                      onClick={() => setPermuteExtraMethod(m)}
+                      style={{ fontSize: '.78rem' }}>{m}</button>
+                  ))}
+                </div>
+              </>
+            )}
+            {permuteCarValue && parseFloat(permuteCarValue) >= total && (
+              <p className="cambio-text" style={{ color: '#2e7d32', marginTop: 6 }}>
+                ✅ Trade-in covers full amount
+              </p>
+            )}
           </div>
         )}
 
         {metodoPago === 'Debe' && (
           <div className="right-section">
-            <label className="right-label">Abono inicial (opcional)</label>
+            <label className="right-label">Initial payment (optional)</label>
             <input type="number" placeholder="0" min="0" value={abonoInicial}
               onChange={e => setAbonoInicial(e.target.value)} />
             {saldoDebe > 0 && (
               <p className="cambio-text" style={{ color: '#e03a3a' }}>
-                Saldo pendiente: <strong>{formatCOP(saldoDebe)}</strong>
+                Balance due: <strong>{formatCOP(saldoDebe)}</strong>
               </p>
             )}
           </div>

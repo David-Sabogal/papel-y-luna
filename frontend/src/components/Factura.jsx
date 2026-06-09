@@ -5,10 +5,10 @@ const formatCOP = (v) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v || 0);
 
 const INFO_NEGOCIO = {
-  nombre: 'Papel & Luna',
-  nit: '123.456.789-0',
-  direccion: 'Calle 123 #45-67, Chía, Cundinamarca',
-  telefono: '350 884 1010',
+  nombre: 'FT Vanguard Group',
+  ein: '12-3456789',
+  direccion: 'California, USA',
+  telefono: '+1 (555) 000-0000',
 };
 
 export default function Factura({ venta, onClose }) {
@@ -45,7 +45,7 @@ export default function Factura({ venta, onClose }) {
         <div ref={printRef} className="factura-contenido">
           <div className="centro">
             <p className="negrita" style={{ fontSize: '1.1rem' }}>{INFO_NEGOCIO.nombre}</p>
-            <p>NIT: {INFO_NEGOCIO.nit}</p>
+            <p>EIN: {INFO_NEGOCIO.ein}</p>
             <p>{INFO_NEGOCIO.direccion}</p>
             <p>Tel: {INFO_NEGOCIO.telefono}</p>
           </div>
@@ -98,12 +98,28 @@ export default function Factura({ venta, onClose }) {
           <div className="linea" />
 
           <div className="fila"><span>Método de pago:</span><span>{venta.metodoPago}</span></div>
+          
+          {/* Lógica de Efectivo / Cash previa */}
           {venta.metodoPago === 'Efectivo' && (
             <>
               <div className="fila"><span>Recibido:</span><span>{formatCOP(venta.valorRecibido)}</span></div>
               <div className="fila"><span>Cambio:</span><span>{formatCOP(venta.cambio)}</span></div>
             </>
           )}
+
+          {/* Nueva lógica de Permuta integrada */}
+          {venta.metodoPago === 'Permuta' && (
+            <div style={{ fontSize: '.84rem', color: '#555', width: '100%' }}>
+              <div className="fila"><span>Trade-in vehicle:</span><span>{formatCOP(venta.permuteCarValue)}</span></div>
+              {venta.permuteCarValue < venta.total && (
+                <div className="fila">
+                  <span>Remainder ({venta.permuteExtraMethod}):</span>
+                  <span>{formatCOP(venta.total - venta.permuteCarValue)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {venta.saldoDebe > 0 && (
             <div className="fila" style={{ color: '#e03a3a' }}>
               <span>Saldo pendiente:</span><span><strong>{formatCOP(venta.saldoDebe)}</strong></span>

@@ -28,9 +28,9 @@ export default function Login() {
     <div className="login-bg">
       <div className="login-card">
         <div className="login-brand">
-          <span>🌙</span>
-          <h1>Papel & Luna</h1>
-          <p>Sistema POS</p>
+          <span>🚗</span>
+          <h1>FT Vanguard Group</h1>
+          <p>Management System</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">

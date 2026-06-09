@@ -13,8 +13,11 @@ module.exports = (sequelize, DataTypes) => {
     iva:            { type: DataTypes.FLOAT, defaultValue: 0 },
     total:          { type: DataTypes.FLOAT, defaultValue: 0 },
     metodoPago: {
-      type: DataTypes.ENUM('Efectivo', 'Nequi', 'Débito', 'Debe'),
+      type: DataTypes.ENUM('Cash', 'Zelle', 'CVS', 'Cashier Check', 'Permuta', 'Debe'),
     },
+    // Para Permuta: valor del auto recibido + metodo del excedente
+    permuteCarValue:   { type: DataTypes.FLOAT, defaultValue: 0 },
+    permuteExtraMethod: { type: DataTypes.STRING(50) },
     valorRecibido:    { type: DataTypes.FLOAT, defaultValue: 0 },
     cambio:           { type: DataTypes.FLOAT, defaultValue: 0 },
     saldoDebe:        { type: DataTypes.FLOAT, defaultValue: 0 },
@@ -35,7 +38,6 @@ module.exports = (sequelize, DataTypes) => {
       through: models.VentaItem,
       foreignKey: 'ventaId',
       otherKey: 'productoId',
-      onDelete: 'SET NULL'
     });
   };
 

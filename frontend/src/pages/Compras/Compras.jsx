@@ -17,9 +17,9 @@ export default function Compras() {
   const [detalle, setDetalle]         = useState(null);
   const [msg, setMsg]                 = useState(null);
 
-  // Formulario compra
+  // Formulario compra - Estado inicial actualizado a 'Cash'
   const [form, setForm] = useState({
-    proveedorId: '', metodoPago: 'Efectivo', observaciones: '',
+    proveedorId: '', metodoPago: 'Cash', observaciones: '',
     items: [{ ...emptyItem }],
   });
 
@@ -98,7 +98,7 @@ export default function Compras() {
         })),
       });
       setShowForm(false);
-      setForm({ proveedorId: '', metodoPago: 'Efectivo', observaciones: '', items: [{ ...emptyItem }] });
+      setForm({ proveedorId: '', metodoPago: 'Cash', observaciones: '', items: [{ ...emptyItem }] });
       mostrarMsg('✅ Compra registrada correctamente');
       cargar();
     } catch (err) {
@@ -122,29 +122,29 @@ export default function Compras() {
   };
 
   // RF-94: crear producto rápido desde compra
-const crearProductoRapido = async (e) => {
-  e.preventDefault();
-  try {
-    const costoDelItem = parseFloat(form.items[itemIndexRapido]?.costoUnitario) || 0;
-    const { data } = await client.post('/api/productos', {
-      nombre: formProductoRapido.nombre,
-      precio: parseFloat(formProductoRapido.precio) || 0,
-      costo:  costoDelItem, // toma el costo unitario de la línea de compra
-      stock:  0,
-    });
-    setProductos(prev => [...prev, data]);
-    if (itemIndexRapido !== null) {
-      cambiarItem(itemIndexRapido, 'productoId', String(data.id));
-      cambiarItem(itemIndexRapido, 'nombreProducto', data.nombre);
+  const crearProductoRapido = async (e) => {
+    e.preventDefault();
+    try {
+      const costoDelItem = parseFloat(form.items[itemIndexRapido]?.costoUnitario) || 0;
+      const { data } = await client.post('/api/productos', {
+        nombre: formProductoRapido.nombre,
+        precio: parseFloat(formProductoRapido.precio) || 0,
+        costo:  costoDelItem, // toma el costo unitario de la línea de compra
+        stock:  0,
+      });
+      setProductos(prev => [...prev, data]);
+      if (itemIndexRapido !== null) {
+        cambiarItem(itemIndexRapido, 'productoId', String(data.id));
+        cambiarItem(itemIndexRapido, 'nombreProducto', data.nombre);
+      }
+      setShowProductoRapido(false);
+      setFormProductoRapido(emptyProductoRapido);
+      setItemIndexRapido(null);
+      mostrarMsg(`Producto "${data.nombre}" creado y agregado`);
+    } catch (err) {
+      mostrarMsg(err.response?.data?.error || 'Error al crear producto', 'error');
     }
-    setShowProductoRapido(false);
-    setFormProductoRapido(emptyProductoRapido);
-    setItemIndexRapido(null);
-    mostrarMsg(`Producto "${data.nombre}" creado y agregado`);
-  } catch (err) {
-    mostrarMsg(err.response?.data?.error || 'Error al crear producto', 'error');
-  }
-};
+  };
 
   // Filtrar compras
   const comprasFiltradas = compras.filter(c => {
@@ -195,66 +195,66 @@ const crearProductoRapido = async (e) => {
             </tr>
           </thead>
           <tbody>
-  {comprasFiltradas.length === 0 ? (
-    <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>
-      No hay compras registradas
-    </td></tr>
-  ) : comprasFiltradas.map(c => {
-    const mostrandoDetalle = detalle?.id === c.id;
-    return (
-      <>
-        <tr key={c.id} style={{ background: mostrandoDetalle ? '#f6fdf9' : undefined }}>
-          <td><strong>#{c.id}</strong></td>
-          <td>{new Date(c.createdAt).toLocaleDateString('es-CO')}</td>
-          <td>{c.Proveedor?.nombre || <span style={{ color: '#bbb' }}>Sin proveedor</span>}</td>
-          <td><strong>{formatCOP(c.total)}</strong></td>
-          <td>{c.metodoPago}</td>
-          <td>
-            <button className="btn btn-secondary"
-              style={{ padding: '4px 10px', fontSize: '.78rem' }}
-              onClick={() => setDetalle(mostrandoDetalle ? null : c)}>
-              {mostrandoDetalle ? '▲ Ocultar' : '▼ Ver'}
-            </button>
-          </td>
-        </tr>
+            {comprasFiltradas.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24, color: '#bbb' }}>
+                No hay compras registradas
+              </td></tr>
+            ) : comprasFiltradas.map(c => {
+              const mostrandoDetalle = detalle?.id === c.id;
+              return (
+                <Fragment key={c.id}>
+                  <tr style={{ background: mostrandoDetalle ? '#f6fdf9' : undefined }}>
+                    <td><strong>#{c.id}</strong></td>
+                    <td>{new Date(c.createdAt).toLocaleDateString('es-CO')}</td>
+                    <td>{c.Proveedor?.nombre || <span style={{ color: '#bbb' }}>Sin proveedor</span>}</td>
+                    <td><strong>{formatCOP(c.total)}</strong></td>
+                    <td>{c.metodoPago}</td>
+                    <td>
+                      <button className="btn btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '.78rem' }}
+                        onClick={() => setDetalle(mostrandoDetalle ? null : c)}>
+                        {mostrandoDetalle ? '▲ Ocultar' : '▼ Ver'}
+                      </button>
+                    </td>
+                  </tr>
 
-        {mostrandoDetalle && (
-          <tr key={`detalle-${c.id}`}>
-            <td colSpan={6} style={{ padding: 0 }}>
-              <div className="detalle-inline">
-                <table className="detalle-tabla">
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th>Cantidad</th>
-                      <th>Costo unit.</th>
-                      <th>Subtotal</th>
+                  {mostrandoDetalle && (
+                    <tr key={`detalle-${c.id}`}>
+                      <td colSpan={6} style={{ padding: 0 }}>
+                        <div className="detalle-inline">
+                          <table className="detalle-tabla">
+                            <thead>
+                              <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Costo unit.</th>
+                                <th>Subtotal</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {c.CompraItems?.map(i => (
+                                <tr key={i.id}>
+                                  <td>{i.Producto?.nombre || i.nombreProducto || '—'}</td>
+                                  <td>{i.cantidad}</td>
+                                  <td>{formatCOP(i.costoUnitario)}</td>
+                                  <td>{formatCOP(i.subtotal)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {c.observaciones && (
+                            <p style={{ fontSize: '.84rem', color: '#888', marginTop: 6 }}>
+                              Obs: {c.observaciones}
+                            </p>
+                          )}
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {c.CompraItems?.map(i => (
-                      <tr key={i.id}>
-                        <td>{i.Producto?.nombre || i.nombreProducto || '—'}</td>
-                        <td>{i.cantidad}</td>
-                        <td>{formatCOP(i.costoUnitario)}</td>
-                        <td>{formatCOP(i.subtotal)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {c.observaciones && (
-                  <p style={{ fontSize: '.84rem', color: '#888', marginTop: 6 }}>
-                    Obs: {c.observaciones}
-                  </p>
-                )}
-              </div>
-            </td>
-          </tr>
-        )}
-      </>
-    );
-  })}
-</tbody>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
         </table>
       </div>
 
@@ -312,13 +312,17 @@ const crearProductoRapido = async (e) => {
                 </div>
               </div>
 
+              {/* Selector modificado con los nuevos métodos sugeridos por Claude */}
               <div className="field">
                 <label>Método de pago *</label>
                 <select value={form.metodoPago}
                   onChange={e => setForm({ ...form, metodoPago: e.target.value })}>
-                  <option>Efectivo</option>
-                  <option>Nequi</option>
-                  <option>Consignacion</option>
+                  <option>Cash</option>
+                  <option>Cashier Check</option>
+                  <option>Adesa</option>
+                  <option>Manheim</option>
+                  <option>Copart</option>
+                  <option>IAA</option>
                 </select>
               </div>
 
@@ -412,37 +416,35 @@ const crearProductoRapido = async (e) => {
       )}
 
       {/* Modal producto rápido (RF-94) */}
-{showProductoRapido && (
-  <div className="modal-overlay" style={{ zIndex: 2000 }}>
-    <div className="modal-box" style={{ maxWidth: 400 }}>
-      <h3>➕ Nuevo producto</h3>
-      <p style={{ color: '#888', fontSize: '.84rem', margin: '6px 0 14px' }}>
-        Registro rápido — el stock se actualizará automáticamente con la cantidad que ingreses en esta compra.
-        Puedes completar más datos desde la sección Productos.
-      </p>
-      <form onSubmit={crearProductoRapido}
-        style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div className="field"><label>Nombre *</label>
-          <input required value={formProductoRapido.nombre}
-            onChange={e => setFormProductoRapido({ ...formProductoRapido, nombre: e.target.value })}
-            autoFocus />
+      {showProductoRapido && (
+        <div className="modal-overlay" style={{ zIndex: 2000 }}>
+          <div className="modal-box" style={{ maxWidth: 400 }}>
+            <h3>➕ Nuevo producto</h3>
+            <p style={{ color: '#888', fontSize: '.84rem', margin: '6px 0 14px' }}>
+              Registro rápido — el stock se actualizará automáticamente con la cantidad que ingreses en esta compra.
+              Puedes completar más datos desde la sección Productos.
+            </p>
+            <form onSubmit={crearProductoRapido}
+              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="field"><label>Nombre *</label>
+                <input required value={formProductoRapido.nombre}
+                  onChange={e => setFormProductoRapido({ ...formProductoRapido, nombre: e.target.value })}
+                  autoFocus />
+              </div>
+              <div className="field"><label>Precio de venta *</label>
+                <input required type="number" min="0" placeholder="¿A cuánto lo vendes?"
+                  value={formProductoRapido.precio}
+                  onChange={e => setFormProductoRapido({ ...formProductoRapido, precio: e.target.value })} />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button type="button" className="btn btn-secondary"
+                  onClick={() => setShowProductoRapido(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Crear producto</button>
+              </div>
+            </form>
+          </div>
         </div>
-        <div className="field"><label>Precio de venta *</label>
-          <input required type="number" min="0" placeholder="¿A cuánto lo vendes?"
-            value={formProductoRapido.precio}
-            onChange={e => setFormProductoRapido({ ...formProductoRapido, precio: e.target.value })} />
-        </div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-          <button type="button" className="btn btn-secondary"
-            onClick={() => setShowProductoRapido(false)}>Cancelar</button>
-          <button type="submit" className="btn btn-primary">Crear producto</button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
-
-
+      )}
     </div>
   );
 }

@@ -3,8 +3,8 @@
 module.exports = (sequelize, DataTypes) => {
   const Compra = sequelize.define('Compra', {
     proveedorId:   { type: DataTypes.INTEGER, allowNull: true },
-    metodoPago:    {
-      type: DataTypes.ENUM('Efectivo', 'Nequi', 'Consignacion'),
+    metodoPago: {
+      type: DataTypes.ENUM('Cash', 'Cashier Check', 'Adesa', 'Manheim', 'Copart', 'IAA'),
       allowNull: false,
     },
     total:         { type: DataTypes.FLOAT, allowNull: false },
