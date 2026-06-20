@@ -258,35 +258,6 @@ export default function Compras() {
         </table>
       </div>
 
-      {/* Detalle compra */}
-      {detalle && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <h3 style={{ marginBottom: 12, fontSize: '1rem', fontWeight: 700 }}>
-            Detalle — Compra #{detalle.id}
-          </h3>
-          <table>
-            <thead>
-              <tr><th>Producto</th><th>Cantidad</th><th>Costo unit.</th><th>Subtotal</th></tr>
-            </thead>
-            <tbody>
-              {detalle.CompraItems?.map(i => (
-                <tr key={i.id}>
-                  <td>{i.Producto?.nombre || i.nombreProducto || '—'}</td>
-                  <td>{i.cantidad}</td>
-                  <td>{formatCOP(i.costoUnitario)}</td>
-                  <td>{formatCOP(i.subtotal)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {detalle.observaciones && (
-            <p style={{ marginTop: 10, fontSize: '.86rem', color: '#888' }}>
-              Obs: {detalle.observaciones}
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Modal nueva compra */}
       {showForm && (
         <div className="modal-overlay">
@@ -319,10 +290,7 @@ export default function Compras() {
                   onChange={e => setForm({ ...form, metodoPago: e.target.value })}>
                   <option>Cash</option>
                   <option>Cashier Check</option>
-                  <option>Adesa</option>
-                  <option>Manheim</option>
-                  <option>Copart</option>
-                  <option>IAA</option>
+                  <option>Zelle</option>
                 </select>
               </div>
 

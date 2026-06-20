@@ -189,11 +189,8 @@ export default function ReembolsoVenta({ venta, onClose }) {
             <label>Fuente del reembolso</label>
             <select value={fuente} onChange={e => setFuente(e.target.value)}>
               <option>Cashier Check</option>
-              <option>Adesa</option>
-              <option>Manheim</option>
               <option>Cash</option>
-              <option>Copart</option>
-              <option>IAA</option>
+              <option>Zelle</option>
             </select>
           </div>
           <div className="field">
