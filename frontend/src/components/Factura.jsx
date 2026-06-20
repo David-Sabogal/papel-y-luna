@@ -6,9 +6,8 @@ const formatCOP = (v) =>
 
 const INFO_NEGOCIO = {
   nombre: 'FT Vanguard Group',
-  ein: '12-3456789',
   direccion: 'California, USA',
-  telefono: '+1 (555) 000-0000',
+  telefono: '+1 (408) 690-4674',
 };
 
 export default function Factura({ venta, onClose }) {
@@ -45,7 +44,6 @@ export default function Factura({ venta, onClose }) {
         <div ref={printRef} className="factura-contenido">
           <div className="centro">
             <p className="negrita" style={{ fontSize: '1.1rem' }}>{INFO_NEGOCIO.nombre}</p>
-            <p>EIN: {INFO_NEGOCIO.ein}</p>
             <p>{INFO_NEGOCIO.direccion}</p>
             <p>Tel: {INFO_NEGOCIO.telefono}</p>
           </div>
