@@ -97,7 +97,7 @@ exports.create = async (req, res, next) => {
     }
 
     const total = Math.max(subtotal - descuentoValor, 0);
-    const cambio = metodoPago === 'Efectivo' ? Math.max((valorRecibido || 0) - total, 0) : 0;
+    const cambio = metodoPago === 'Cash' ? Math.max((valorRecibido || 0) - total, 0) : 0;
     const abono = metodoPago === 'Debe' ? Math.min(parseFloat(abonoInicial) || 0, total) : 0;
     const saldoDebe = metodoPago === 'Debe' ? total - abono : 0;
 
@@ -110,6 +110,8 @@ exports.create = async (req, res, next) => {
       iva: 0,
       total,
       metodoPago:     metodoPago || null,
+      permuteCarValue:    metodoPago === 'Permuta' ? (parseFloat(req.body.permuteCarValue) || 0) : 0,
+      permuteExtraMethod: metodoPago === 'Permuta' ? (req.body.permuteExtraMethod || null) : null,
       valorRecibido:  metodoPago === 'Debe' ? abono : (valorRecibido || 0),
       cambio,
       saldoDebe,
@@ -117,23 +119,23 @@ exports.create = async (req, res, next) => {
     }, { transaction: t });
 
     for (const item of itemsConPrecio) {
-  await VentaItem.create({
-    ventaId:        venta.id,
-    productoId:     item.productoId,
-    nombreProducto: item.producto?.nombre || item.nombre || item.nombreProducto || null,
-    quantity:       item.quantity,
-    price:          item.precioUnitario,
-    subtotal:       item.itemSubtotal,
-    selectedColor:  item.selectedColor || null,
-  }, { transaction: t });
+      await VentaItem.create({
+        ventaId:        venta.id,
+        productoId:     item.productoId,
+        nombreProducto: item.producto?.nombre || item.nombre || item.nombreProducto || null,
+        quantity:       item.quantity,
+        price:          item.precioUnitario,
+        subtotal:       item.itemSubtotal,
+        selectedColor:  item.selectedColor || null,
+      }, { transaction: t });
 
-  if (estado === 'cerrada' && item.producto.trackInventory) {
-    await item.producto.update(
-      { stock: item.producto.stock - item.quantity },
-      { transaction: t }
-    );
-  }
-}
+      if (estado === 'cerrada' && item.producto.trackInventory) {
+        await item.producto.update(
+          { stock: item.producto.stock - item.quantity },
+          { transaction: t }
+        );
+      }
+    }
 
     if (saldoDebe > 0 && clienteId) {
       const cliente = await Cliente.findByPk(clienteId, { transaction: t });
@@ -218,10 +220,8 @@ exports.corregir = async (req, res, next) => {
       estado,
     } = req.body;
 
-    // Estado destino: si viene 'cerrada' en el body, cerrar; si no, mantener o guardar
     const estadoDestino = estado || venta.estado;
 
-    // Snapshot del estado anterior
     const snapshotAnterior = JSON.stringify({
       accion:        venta.estado === 'cerrada' ? 'correccion' : 'cierre',
       fecha:         new Date(),
@@ -237,7 +237,6 @@ exports.corregir = async (req, res, next) => {
       },
     });
 
-    // Restaurar stock si la venta estaba cerrada
     if (venta.estado === 'cerrada') {
       for (const oldItem of venta.items) {
         if (oldItem.productoId) {
@@ -249,7 +248,6 @@ exports.corregir = async (req, res, next) => {
       }
     }
 
-    // Restaurar saldo del cliente si era Debe
     if (venta.metodoPago === 'Debe' && venta.saldoDebe > 0 && venta.clienteId) {
       const clienteAnterior = await Cliente.findByPk(venta.clienteId, { transaction: t });
       if (clienteAnterior) {
@@ -260,10 +258,8 @@ exports.corregir = async (req, res, next) => {
       }
     }
 
-    // Borrar items anteriores
     await VentaItem.destroy({ where: { ventaId: venta.id }, transaction: t });
 
-    // Calcular nuevos totales
     let subtotal = 0;
     const itemsConPrecio = [];
 
@@ -286,13 +282,11 @@ exports.corregir = async (req, res, next) => {
         selectedColor: item.selectedColor || null,
       }, { transaction: t });
 
-      // Solo descontar stock si se está cerrando
       if (estadoDestino === 'cerrada' && producto.trackInventory) {
         await producto.update({ stock: producto.stock - item.quantity }, { transaction: t });
       }
     }
 
-    // Descuento
     let descuentoValor = 0;
     const descId = descuentoId !== undefined ? descuentoId : venta.descuentoId;
     if (descId) {
@@ -307,7 +301,7 @@ exports.corregir = async (req, res, next) => {
     const metodo = metodoPago !== undefined ? metodoPago : venta.metodoPago;
     const abono  = metodo === 'Debe' ? Math.min(parseFloat(abonoInicial) || 0, total) : 0;
     const saldoDebe = metodo === 'Debe' ? total - abono : 0;
-    const cambio = metodo === 'Efectivo' ? Math.max((parseFloat(valorRecibido) || 0) - total, 0) : 0;
+    const cambio = metodo === 'Cash' ? Math.max((parseFloat(valorRecibido) || 0) - total, 0) : 0;
 
     await venta.update({
       estado:        estadoDestino,
@@ -317,6 +311,8 @@ exports.corregir = async (req, res, next) => {
       clienteId:     clienteId !== undefined ? clienteId : venta.clienteId,
       descuentoId:   descId,
       metodoPago:    metodo,
+      permuteCarValue:    metodo === 'Permuta' ? (parseFloat(req.body.permuteCarValue) || 0) : 0,
+      permuteExtraMethod: metodo === 'Permuta' ? (req.body.permuteExtraMethod || null) : null,
       valorRecibido: metodo === 'Debe' ? abono : (valorRecibido !== undefined ? parseFloat(valorRecibido) || 0 : venta.valorRecibido),
       cambio,
       saldoDebe,
@@ -326,7 +322,6 @@ exports.corregir = async (req, res, next) => {
       snapshotAnterior,
     }, { transaction: t });
 
-    // Actualizar saldo del cliente si la venta se cierra con Debe
     if (estadoDestino === 'cerrada' && saldoDebe > 0) {
       const cId = clienteId !== undefined ? clienteId : venta.clienteId;
       if (cId) {
@@ -356,7 +351,6 @@ exports.anular = async (req, res, next) => {
     if (!venta) { await t.rollback(); return res.status(404).json({ error: 'Venta no encontrada' }); }
     if (venta.estado === 'anulada') { await t.rollback(); return res.status(400).json({ error: 'Ya está anulada' }); }
 
-    // Verificar cuánto stock ya fue revertido por reembolsos parciales
     const { Reembolso, ReembolsoItem } = require('../models');
     const reembolsosPrevios = await Reembolso.findAll({
       where: { ventaId: venta.id },
@@ -373,7 +367,6 @@ exports.anular = async (req, res, next) => {
       }
     }
 
-    // Restaurar stock SOLO de lo que NO fue revertido ya
     if (venta.estado === 'cerrada') {
       for (const item of venta.items) {
         if (item.productoId) {
@@ -389,7 +382,6 @@ exports.anular = async (req, res, next) => {
       }
     }
 
-    // Restaurar saldo del cliente considerando reembolsos ya hechos
     if (venta.saldoDebe > 0 && venta.clienteId) {
       const cliente = await Cliente.findByPk(venta.clienteId, { transaction: t });
       if (cliente) {
@@ -437,10 +429,10 @@ exports.reporteVentas = async (req, res, next) => {
     const conteo = {};
     for (const v of ventas) {
       for (const item of v.items) {
-       const key = item.productoId || `del-${item.nombreProducto}`;
-if (!conteo[key]) {
-  conteo[key] = { productoId: item.productoId, nombre: item.Producto?.nombre || item.nombreProducto || 'Producto Eliminado', cantidad: 0, total: 0 };
-}
+        const key = item.productoId || `del-${item.nombreProducto}`;
+        if (!conteo[key]) {
+          conteo[key] = { productoId: item.productoId, nombre: item.Producto?.nombre || item.nombreProducto || 'Producto Eliminado', cantidad: 0, total: 0 };
+        }
         conteo[key].cantidad += item.quantity;
         conteo[key].total    += item.subtotal;
       }

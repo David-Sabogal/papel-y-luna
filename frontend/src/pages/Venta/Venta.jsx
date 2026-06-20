@@ -17,7 +17,7 @@ export default function Venta() {
   const [clientes, setClientes]     = useState([]);
   const [descuentos, setDescuentos] = useState([]);
   const [descuentoId, setDescuentoId] = useState('');
-  const [metodoPago, setMetodoPago] = useState('Cash'); // Cambiado a 'Cash' por defecto
+  const [metodoPago, setMetodoPago] = useState('Cash'); 
   const [valorRecibido, setValorRecibido] = useState('');
   const [abonoInicial, setAbonoInicial]   = useState('');
   const [ventaGuardada, setVentaGuardada] = useState(null);
@@ -31,7 +31,6 @@ export default function Venta() {
   const [categorias, setCategorias] = useState([]);
   const searchRef = useRef(null);
 
-  // Nuevos estados para Permuta agregados por Claude
   const [permuteCarValue, setPermuteCarValue] = useState('');
   const [permuteExtraMethod, setPermuteExtraMethod] = useState('Cash');
 
@@ -151,7 +150,6 @@ export default function Venta() {
     }
     setLoading(true);
     try {
-      // Payload modificado con los datos de permuta que dio Claude
       const payload = {
         items, clienteId: cliente?.id || null,
         descuentoId: descuentoId || null,
@@ -276,7 +274,6 @@ export default function Venta() {
         )}
 
         <div className={`panel-principal ${tieneItems ? 'con-items' : ''}`}>
-
           {tieneItems && (
             <div className="carrito-section">
               {ventaGuardada && (
@@ -432,7 +429,6 @@ export default function Venta() {
           <div className="total-row total-final"><span>TOTAL</span><span>{formatCOP(total)}</span></div>
         </div>
 
-        {/* Bloque de Métodos de Pago y Lógica de Permuta provisto por Claude */}
         <div className="right-section">
           <label className="right-label">Método de pago</label>
           <div className="metodos-pago">

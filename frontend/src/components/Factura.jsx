@@ -95,27 +95,30 @@ export default function Factura({ venta, onClose }) {
 
           <div className="linea" />
 
-          <div className="fila"><span>Método de pago:</span><span>{venta.metodoPago}</span></div>
+          <div className="fila"><span>Método de pago:</span><span><strong>{venta.metodoPago}</strong></span></div>
           
-          {/* Lógica de Efectivo / Cash previa */}
-          {venta.metodoPago === 'Efectivo' && (
+          {/* Lógica para Efectivo / Cash */}
+          {venta.metodoPago === 'Cash' && (
             <>
               <div className="fila"><span>Recibido:</span><span>{formatCOP(venta.valorRecibido)}</span></div>
               <div className="fila"><span>Cambio:</span><span>{formatCOP(venta.cambio)}</span></div>
             </>
           )}
 
-          {/* Nueva lógica de Permuta integrada */}
+          {/* Nueva lógica de Permuta perfectamente integrada */}
           {venta.metodoPago === 'Permuta' && (
-            <div style={{ fontSize: '.84rem', color: '#555', width: '100%' }}>
-              <div className="fila"><span>Trade-in vehicle:</span><span>{formatCOP(venta.permuteCarValue)}</span></div>
+            <>
+              <div className="fila"><span>Valor Vehículo (Trade-in):</span><span>{formatCOP(venta.permuteCarValue)}</span></div>
               {venta.permuteCarValue < venta.total && (
                 <div className="fila">
-                  <span>Remainder ({venta.permuteExtraMethod}):</span>
+                  <span>Restante pagado con ({venta.permuteExtraMethod}):</span>
                   <span>{formatCOP(venta.total - venta.permuteCarValue)}</span>
                 </div>
               )}
-            </div>
+              {venta.permuteCarValue >= venta.total && (
+                <div className="fila"><span style={{ color: '#2e7d32' }}>Permuta cubre total ✅</span></div>
+              )}
+            </>
           )}
 
           {venta.saldoDebe > 0 && (
